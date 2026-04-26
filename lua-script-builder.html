@@ -688,6 +688,66 @@
       }
     }
 
+    .sticky-header {
+      position: sticky;
+      top: 0;
+      z-index: 1000;
+      background: rgba(246, 248, 250, 0.95);
+      backdrop-filter: blur(8px);
+      padding: 12px 24px;
+      margin: -14px -14px 20px -14px;
+      border-bottom: 1px solid #d7e0ea;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+      flex-wrap: wrap;
+      gap: 12px;
+    }
+    
+    .sticky-sidebar {
+      position: sticky;
+      top: 80px;
+      max-height: calc(100vh - 100px);
+      overflow-y: auto;
+    }
+    
+    details.global-settings {
+      background: var(--surface);
+      border: 1px solid #d7e0ea;
+      border-radius: 10px;
+      margin-bottom: 20px;
+      padding: 16px 20px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.03);
+    }
+    details.global-settings summary {
+      font-size: 1.05rem;
+      font-weight: 700;
+      cursor: pointer;
+      color: #1b3650;
+      outline: none;
+      list-style: none;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    details.global-settings summary::-webkit-details-marker {
+      display: none;
+    }
+    details.global-settings summary::before {
+      content: "▶";
+      font-size: 0.8rem;
+      color: var(--accent);
+      transition: transform 0.2s;
+    }
+    details.global-settings[open] summary::before {
+      transform: rotate(90deg);
+    }
+    details.global-settings .grid {
+      margin-top: 16px;
+    }
+
+
     .tabs-container {
       display: flex;
       gap: 4px;
@@ -741,11 +801,21 @@
   </style>
 </head>
 <body>
+  <div class="sticky-header">
+    <div>
+      <h1 style="margin: 0; font-size: 1.3rem; font-family: var(--font-heading); color: #1b3650;">Lua Script Builder</h1>
+      <div id="status" class="ok" style="margin-top: 4px; font-size: 0.85rem; font-weight: 600; color: var(--accent); min-height: 1.2em;"></div>
+    </div>
+    <div class="actions" style="justify-content: flex-end; margin-top: 0;">
+      <button class="btn-ghost" id="btnToggleOutput">生成Luaを表示</button>
+      <button class="btn-ghost" id="btnDownload">保存 (init.lua)</button>
+      <button class="btn-sub" id="btnCopy">クリップボードにコピー</button>
+      <button class="btn-main" id="btnGenerate">スクリプト生成</button>
+    </div>
+  </div>
+
   <div class="wrap">
-    <section class="card">
-      <h1>Lua Script Builder</h1>
-      <p>Hammerspoon向けのループ制御スクリプトをフォーム入力から生成します。生成後はコピーして ~/.hammerspoon/init.lua に貼り付けます。</p>
-    </section>
+    <p class="hint" style="margin-top: 0; margin-bottom: 20px;">Hammerspoon向けのループ制御スクリプトをフォーム入力から生成します。注意: アクセシビリティ権限、KeyPad側ショートカット設定、iPadのSwitch Controlキー登録を先に済ませてください。</p>
 
     <div class="tabs-container" id="projectTabs"></div>
     <div style="display: flex; gap: 8px; justify-content: flex-end; margin-bottom: 20px;">
@@ -754,8 +824,8 @@
       <button id="btnDeleteProject" class="btn-ghost btn-small" style="color: #dc2626; border-color: #fca5a5;">削除</button>
     </div>
 
-    <section class="card" style="margin-bottom: 20px;">
-      <h2 style="font-size: 1.1rem; margin-top: 0; margin-bottom: 12px; font-family: var(--font-heading);">グローバル設定（全プロジェクト共通）</h2>
+    <details class="global-settings">
+      <summary>グローバル設定（全プロジェクト共通）</summary>
       <div class="grid">
         <div class="row">
           <label for="ipadMoveHotkeyDisplay">iPad切り替えショートカット</label>
@@ -782,7 +852,7 @@
           </div>
         </div>
       </div>
-    </section>
+    </details>
 
       <div class="main-columns">
         <section class="card">
@@ -803,7 +873,7 @@
         </div>
         </section>
 
-        <section class="card">
+        <section class="card sticky-sidebar">
           <div class="grid">
             <div class="span-2">
               <p class="section-title">プロジェクト別ホットキー</p>
@@ -901,18 +971,6 @@
           </div>
         </section>
       </div>
-
-      <section class="card" style="display: flex; flex-direction: column; align-items: center; text-align: center;">
-        <h2 style="font-size: 1.1rem; margin-top: 0; margin-bottom: 12px; font-family: var(--font-heading);">全プロジェクトを統合してスクリプト生成</h2>
-        <div class="actions" style="justify-content: center; margin-top: 0;">
-          <button class="btn-main" id="btnGenerate">スクリプト生成</button>
-          <button class="btn-sub" id="btnCopy">コピー</button>
-          <button class="btn-ghost" id="btnDownload">init.luaとして保存</button>
-          <button class="btn-ghost" id="btnToggleOutput">生成Luaを表示</button>
-        </div>
-        <div class="hint" style="margin-top: 12px;">注意: Hammerspoonのアクセシビリティ権限、KeyPad側ショートカット設定、iPadのSwitch Controlキー登録を先に済ませてください。</div>
-        <div class="ok" id="status"></div>
-      </section>
 
       <section class="card output-card hidden" id="outputCard">
       <div class="row">
