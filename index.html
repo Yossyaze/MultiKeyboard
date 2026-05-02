@@ -1580,6 +1580,10 @@
           s.appName = (step.appName || "EX Master").trim();
         } else if (s.kind === "check") {
           s.text = (step.text || "アムネディア降臨！！").trim();
+          s.ifFoundAction = step.ifFoundAction || "stop";
+          s.ifFoundTargetId = step.ifFoundTargetId ? Number(step.ifFoundTargetId) : null;
+          s.ifNotFoundAction = step.ifNotFoundAction || "continue";
+          s.ifNotFoundTargetId = step.ifNotFoundTargetId ? Number(step.ifNotFoundTargetId) : null;
         } else {
           s.kind = "key";
           s.key = (step.key || "space").trim().toLowerCase() || "space";
@@ -1831,6 +1835,10 @@ local function createSequence(config)
   local running = false
   local cycleCount = 0
 
+  local stepIdToIndex = {}
+  for i, s in ipairs(config.steps) do
+    stepIdToIndex[s.id] = i
+  end
 
   local function runCycle()
     if not running then
@@ -1842,11 +1850,7 @@ local function createSequence(config)
     logStep(config.enableTimelineLog, cycleCount, "CYCLE_BEGIN", "started (" .. config.name .. ")")
 
     local function runStep(index)
-      if not running then
-        logStep(config.enableTimelineLog, cycleCount, "STOP_DETECTED", "before step " .. tostring(index))
-        return
-      end
-
+      if not running then return end
       if index > #config.steps then
         logStep(config.enableTimelineLog, cycleCount, "CYCLE_END", "completed")
         if config.enableLoop then
@@ -1861,7 +1865,7 @@ local function createSequence(config)
       local step = config.steps[index]
       logStep(config.enableTimelineLog, cycleCount, "STEP_BEGIN", string.format("id=%d type=%s label=%s", step.id, step.type, step.label))
 
-      local function continueAfterAction()
+      local function continueAfterAction(nextIndex)
         logStep(config.enableTimelineLog, cycleCount, "STEP_END", step.type)
 
         local waitSeconds = step.waitAfter or 0.25
@@ -1875,8 +1879,10 @@ local function createSequence(config)
             return
           end
           logStep(config.enableTimelineLog, cycleCount, "WAIT_END", step.label)
-          if index < #config.steps then
-            runStep(index + 1)
+          
+          local targetIndex = nextIndex or (index + 1)
+          if targetIndex <= #config.steps then
+            runStep(targetIndex)
           else
             logStep(config.enableTimelineLog, cycleCount, "CYCLE_END", "completed")
             if config.enableLoop then
@@ -1907,21 +1913,40 @@ local function createSequence(config)
         end
       end
 
+      local function handleStepResult(action, targetId)
+        if action == "stop" then
+          running = false
+          hs.alert.show(string.format("[%s] 【停止】アクションにより停止しました: %s", config.name, step.label), 5)
+          logStep(config.enableTimelineLog, cycleCount, "STEP_STOP_ACTION", step.label)
+        elseif action == "jump" and targetId then
+          local nextIdx = stepIdToIndex[targetId]
+          if nextIdx then
+            logStep(config.enableTimelineLog, cycleCount, "STEP_JUMP", string.format("to id=%d index=%d", targetId, nextIdx))
+            continueAfterAction(nextIdx)
+          else
+            logStep(config.enableTimelineLog, cycleCount, "ERROR", "Jump target not found: " .. targetId)
+            continueAfterAction()
+          end
+        else
+          continueAfterAction()
+        end
+      end
+
       if step.type == "check" then
         logStep(config.enableTimelineLog, cycleCount, "CHECK_START", step.text)
         local task = hs.task.new("/usr/bin/shortcuts", function(exitCode, stdOut, stdErr)
           if not running then return end
           if exitCode == 0 and stdOut then
             if string.find(stdOut, step.text, 1, true) then
-              running = false
-              hs.alert.show(string.format("[%s] 【検知】「%s」が見つかりました。停止します。", config.name, step.text), 5)
-              logStep(config.enableTimelineLog, cycleCount, "CHECK_STOP_CONDITION_MET", step.text)
+              logStep(config.enableTimelineLog, cycleCount, "CHECK_MATCH", step.text)
+              handleStepResult(step.ifFoundAction, step.ifFoundTargetId)
             else
-              continueAfterAction()
+              logStep(config.enableTimelineLog, cycleCount, "CHECK_NO_MATCH", step.text)
+              handleStepResult(step.ifNotFoundAction, step.ifNotFoundTargetId)
             end
           else
             logStep(config.enableTimelineLog, cycleCount, "CHECK_ERROR", "OCR shortcut failed")
-            continueAfterAction()
+            handleStepResult(step.ifNotFoundAction, step.ifNotFoundTargetId)
           end
         end, {"run", "GetScreenText"})
         task:start()
@@ -2076,7 +2101,7 @@ end
                       `CHECKステップの検知文字が未設定です: ${step.title}`,
                     );
                   }
-                  return `    { id = ${step.id}, type = "check", label = "${luaString(step.title)}", text = "${luaString(step.text)}", waitAfter = ${normalizeWaitAfter(step.waitAfter, 0.5).toFixed(2)} },`;
+                  return `    { id = ${step.id}, type = "check", label = "${luaString(step.title)}", text = "${luaString(step.text)}", ifFoundAction = "${step.ifFoundAction || "stop"}", ifFoundTargetId = ${step.ifFoundTargetId || "nil"}, ifNotFoundAction = "${step.ifNotFoundAction || "continue"}", ifNotFoundTargetId = ${step.ifNotFoundTargetId || "nil"}, waitAfter = ${normalizeWaitAfter(step.waitAfter, 0.5).toFixed(2)} },`;
                 }
                 if (!step.key || !step.key.trim()) {
                   throw new Error(
@@ -2281,6 +2306,8 @@ hs.alert.show("Hammerspoon config loaded (Multiple Projects)")
             delete step.y;
             delete step.settleBefore;
             step.text = step.text || "アムネディア降臨！！";
+            step.ifFoundAction = "stop";
+            step.ifNotFoundAction = "continue";
           } else {
             delete step.moveHotkey;
             delete step.appName;
@@ -2295,8 +2322,15 @@ hs.alert.show("Hammerspoon config loaded (Multiple Projects)")
             .toLowerCase();
         } else if (field === "moveHotkey") {
           step.moveHotkey = value || "ipadMove";
-        } else if (field === "waitAfter") {
-          step.waitAfter = normalizeWaitAfter(value, 0.25);
+        } else if (
+          field === "waitAfter" ||
+          field === "x" ||
+          field === "y" ||
+          field === "settleBefore" ||
+          field === "ifFoundTargetId" ||
+          field === "ifNotFoundTargetId"
+        ) {
+          step[field] = value ? Number(value) : null;
         } else {
           step[field] = value;
         }
@@ -2369,13 +2403,66 @@ hs.alert.show("Hammerspoon config loaded (Multiple Projects)")
           `;
             editorContent = `<span class="step-key-label" style="font-size:0.7rem; color:#6366f1; padding-right: 4px;">前面に出す</span>`;
           } else if (step.kind === "check") {
+            const stepOptions = flowSteps
+              .map(
+                (s, i) =>
+                  `<option value="${s.id}" ${step.ifFoundTargetId === s.id ? "selected" : ""}>Step ${i + 1}: ${escapeHtml(s.title || s.kind)}</option>`,
+              )
+              .join("");
+            const stepOptionsNotFound = flowSteps
+              .map(
+                (s, i) =>
+                  `<option value="${s.id}" ${step.ifNotFoundTargetId === s.id ? "selected" : ""}>Step ${i + 1}: ${escapeHtml(s.title || s.kind)}</option>`,
+              )
+              .join("");
+
             displayContent = `
-            <div class="step-key-label-group">
-              <span class="step-key-label" style="min-width: 48px;">検知文字:</span>
-              <input type="text" class="step-input" style="flex:1;" data-field="text" data-step-id="${step.id}" value="${escapeHtml(step.text || "")}" placeholder="検知するテキストを入力" />
+            <div style="display: flex; flex-direction: column; gap: 6px;">
+              <div class="step-key-label-group">
+                <span class="step-key-label" style="min-width: 48px;">検知文字:</span>
+                <input type="text" class="step-input" style="flex:1;" data-field="text" data-step-id="${step.id}" value="${escapeHtml(step.text || "")}" placeholder="検知するテキストを入力" />
+              </div>
+              <div class="step-key-label-group" style="gap: 8px;">
+                <div style="flex: 1; display: flex; flex-direction: column; gap: 2px;">
+                  <span class="step-key-label" style="font-size: 0.7rem;">見つかった時:</span>
+                  <select class="step-input" style="padding: 2px 4px; font-size: 0.75rem;" data-field="ifFoundAction" data-step-id="${step.id}">
+                    <option value="stop" ${step.ifFoundAction === "stop" ? "selected" : ""}>停止</option>
+                    <option value="continue" ${step.ifFoundAction === "continue" ? "selected" : ""}>次へ</option>
+                    <option value="jump" ${step.ifFoundAction === "jump" ? "selected" : ""}>ジャンプ</option>
+                  </select>
+                  ${
+                    step.ifFoundAction === "jump"
+                      ? `
+                    <select class="step-input" style="margin-top: 2px; padding: 2px 4px; font-size: 0.75rem;" data-field="ifFoundTargetId" data-step-id="${step.id}">
+                      <option value="">-- 遷移先を選択 --</option>
+                      ${stepOptions}
+                    </select>
+                  `
+                      : ""
+                  }
+                </div>
+                <div style="flex: 1; display: flex; flex-direction: column; gap: 2px;">
+                  <span class="step-key-label" style="font-size: 0.7rem;">見つからない時:</span>
+                  <select class="step-input" style="padding: 2px 4px; font-size: 0.75rem;" data-field="ifNotFoundAction" data-step-id="${step.id}">
+                    <option value="stop" ${step.ifNotFoundAction === "stop" ? "selected" : ""}>停止</option>
+                    <option value="continue" ${step.ifNotFoundAction === "continue" ? "selected" : ""}>次へ</option>
+                    <option value="jump" ${step.ifNotFoundAction === "jump" ? "selected" : ""}>ジャンプ</option>
+                  </select>
+                  ${
+                    step.ifNotFoundAction === "jump"
+                      ? `
+                    <select class="step-input" style="margin-top: 2px; padding: 2px 4px; font-size: 0.75rem;" data-field="ifNotFoundTargetId" data-step-id="${step.id}">
+                      <option value="">-- 遷移先を選択 --</option>
+                      ${stepOptionsNotFound}
+                    </select>
+                  `
+                      : ""
+                  }
+                </div>
+              </div>
             </div>
           `;
-            editorContent = `<span class="step-key-label" style="font-size:0.7rem; color:#854d0e; padding-right: 4px;">見つけたら停止</span>`;
+            editorContent = `<span class="step-key-label" style="font-size:0.7rem; color:#854d0e; padding-right: 4px;">画面テキスト確認</span>`;
           } else {
             displayContent = `
             <div class="step-key-label-group">
