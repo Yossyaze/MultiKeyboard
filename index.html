@@ -1866,7 +1866,10 @@ local function createSequence(config)
 
         local waitSeconds = step.waitAfter or 0.25
         logStep(config.enableTimelineLog, cycleCount, "WAIT_START", string.format("%s %.2fs", step.label, waitSeconds))
-        hs.timer.doAfter(waitSeconds, function()
+        
+        -- タイマーを保持してGCを防ぐ
+        local function timerCallback()
+          config._timer = nil
           if not running then
             logStep(config.enableTimelineLog, cycleCount, "STOP_DETECTED", "after wait " .. step.label)
             return
@@ -1883,7 +1886,25 @@ local function createSequence(config)
               hs.alert.show("[" .. config.name .. "] Sequence complete")
             end
           end
-        end)
+        end
+
+        if waitSeconds > 3.0 then
+          -- 長い待機の場合は生存確認ログを出す
+          local remaining = waitSeconds
+          local function heartbeat()
+            if not running then return end
+            if remaining <= 5.0 then
+              config._timer = hs.timer.doAfter(remaining, timerCallback)
+            else
+              logStep(config.enableTimelineLog, cycleCount, "WAITING...", string.format("%s: remaining %.2fs", step.label, remaining))
+              remaining = remaining - 5.0
+              config._timer = hs.timer.doAfter(5.0, heartbeat)
+            end
+          end
+          heartbeat()
+        else
+          config._timer = hs.timer.doAfter(waitSeconds, timerCallback)
+        end
       end
 
       if step.type == "check" then
@@ -2077,7 +2098,7 @@ end
           const enableLoop = (p.config && p.config.enableLoop) === "true";
 
           lua += `\n-- [${p.name}]\n`;
-          lua += `local seq_${pId} = createSequence({\n`;
+          lua += `seq_${pId} = createSequence({\n`;
           lua += `  name = "${luaString(p.name)}",\n`;
           lua += `  enableTimelineLog = ${enableTimelineLog ? "true" : "false"},\n`;
           lua += `  enableLoop = ${enableLoop ? "true" : "false"},\n`;
