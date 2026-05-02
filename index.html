@@ -2651,13 +2651,15 @@ hs.alert.show("Hammerspoon config loaded (Multiple Projects)")
         setStatus("Info.plist を解析中...");
 
         let infoPlistFile = null;
+        let shortestPathLength = Infinity;
         for (let i = 0; i < files.length; i++) {
-          if (
-            files[i].webkitRelativePath.endsWith("Contents/Info.plist") ||
-            files[i].webkitRelativePath.includes("/Contents/Info.plist")
-          ) {
-            infoPlistFile = files[i];
-            break;
+          const path = files[i].webkitRelativePath;
+          if (path.endsWith("Contents/Info.plist")) {
+            const depth = path.split("/").length;
+            if (depth < shortestPathLength) {
+              shortestPathLength = depth;
+              infoPlistFile = files[i];
+            }
           }
         }
 
@@ -2673,9 +2675,7 @@ hs.alert.show("Hammerspoon config loaded (Multiple Projects)")
               const match = xml.match(regex);
               return match ? match[1] : null;
             };
-            appName =
-              getPlistValue(text, "CFBundleDisplayName") ||
-              getPlistValue(text, "CFBundleName");
+            appName = getPlistValue(text, "CFBundleName");
           } catch (e) {
             console.error("Info.plistの読み込みエラー:", e);
           }
