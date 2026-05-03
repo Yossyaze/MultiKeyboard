@@ -3406,6 +3406,24 @@ hs.alert.show("Hammerspoon config loaded (Multiple Projects)")
             const stepNum = globalStepIndex++;
             const hasNext = index < steps.length - 1;
 
+            // CHECKステップの末尾判定を共通化
+            const okEnds =
+              step.kind === "check" &&
+              step.okBranch &&
+              step.okBranch.length > 0 &&
+              (step.okBranch[step.okBranch.length - 1].kind === "stop" ||
+                step.okBranch[step.okBranch.length - 1].kind === "jump");
+            const ngEnds =
+              step.kind === "check" &&
+              step.ngBranch &&
+              step.ngBranch.length > 0 &&
+              (step.ngBranch[step.ngBranch.length - 1].kind === "stop" ||
+                step.ngBranch[step.ngBranch.length - 1].kind === "jump");
+            const stepIsTerminal =
+              step.kind === "stop" ||
+              step.kind === "jump" ||
+              (step.kind === "check" && okEnds && ngEnds);
+
             const ipadIcon = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="16" height="20" x="4" y="2" rx="2" ry="2"/><line x1="12" x2="12" y1="18" y2="18"/></svg>`;
             const iphoneIcon = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="10" height="18" x="7" y="3" rx="2" ry="2"/><line x1="12" x2="12" y1="17" y2="17"/></svg>`;
             const keyIcon = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="20" height="16" rx="2" ry="2"/><path d="M6 8h.01"/><path d="M10 8h.01"/><path d="M14 8h.01"/><path d="M18 8h.01"/><path d="M8 12h.01"/><path d="M12 12h.01"/><path d="M16 12h.01"/><path d="M7 16h10"/></svg>`;
@@ -3663,17 +3681,6 @@ hs.alert.show("Hammerspoon config loaded (Multiple Projects)")
                 field: "ngWaitAfter",
               });
 
-              const okEnds =
-                step.okBranch &&
-                step.okBranch.length > 0 &&
-                (step.okBranch[step.okBranch.length - 1].kind === "stop" ||
-                  step.okBranch[step.okBranch.length - 1].kind === "jump");
-              const ngEnds =
-                step.ngBranch &&
-                step.ngBranch.length > 0 &&
-                (step.ngBranch[step.ngBranch.length - 1].kind === "stop" ||
-                  step.ngBranch[step.ngBranch.length - 1].kind === "jump");
-
               let mergeClass = "";
               if (okEnds && ngEnds) mergeClass = " both-ends";
               else if (okEnds) mergeClass = " ok-ends";
@@ -3689,32 +3696,12 @@ hs.alert.show("Hammerspoon config loaded (Multiple Projects)")
                   </div>
                 </div>
               `;
-              const okAfterConnector = `
-                <div class="flow-connector is-branch">
-                  <div class="flow-connector-pill">
-                    <span class="flow-connector-dot"></span>
-                    待機
-                    <input data-field="okWaitAfter" data-step-id="${step.id}" type="number" min="0" step="0.05" value="${normalizeWaitAfter(step.okWaitAfter, 0.5).toFixed(2)}" />
-                    s
-                  </div>
-                </div>
-              `;
               const ngBeforeConnector = `
                 <div class="flow-connector is-branch">
                   <div class="flow-connector-pill">
                     <span class="flow-connector-dot"></span>
                     待機
                     <input data-field="ngWaitBefore" data-step-id="${step.id}" type="number" min="0" step="0.05" value="${normalizeWaitAfter(step.ngWaitBefore, 0.5).toFixed(2)}" />
-                    s
-                  </div>
-                </div>
-              `;
-              const ngAfterConnector = `
-                <div class="flow-connector is-branch">
-                  <div class="flow-connector-pill">
-                    <span class="flow-connector-dot"></span>
-                    待機
-                    <input data-field="ngWaitAfter" data-step-id="${step.id}" type="number" min="0" step="0.05" value="${normalizeWaitAfter(step.ngWaitAfter, 0.5).toFixed(2)}" />
                     s
                   </div>
                 </div>
@@ -3730,18 +3717,12 @@ hs.alert.show("Hammerspoon config loaded (Multiple Projects)")
                     <div class="flow-split-col ok${selectedBranch && selectedBranch.checkId === step.id && selectedBranch.branchType === "ok" ? " selected" : ""}" data-branch-type="ok" data-parent-id="${step.id}">
                       <div class="flow-split-header">✅ OK (見つかった時)</div>
                       ${okBeforeConnector}
-                      ${
-                        okHtml ||
-                        `<div class="flow-split-empty">ここにドロップ</div>${okAfterConnector}`
-                      }
+                      ${okHtml || `<div class="flow-split-empty">ここにドロップ</div>`}
                     </div>
                     <div class="flow-split-col ng${selectedBranch && selectedBranch.checkId === step.id && selectedBranch.branchType === "ng" ? " selected" : ""}" data-branch-type="ng" data-parent-id="${step.id}">
                       <div class="flow-split-header">❌ NG (見つからない時)</div>
                       ${ngBeforeConnector}
-                      ${
-                        ngHtml ||
-                        `<div class="flow-split-empty">ここにドロップ</div>${ngAfterConnector}`
-                      }
+                      ${ngHtml || `<div class="flow-split-empty">ここにドロップ</div>`}
                     </div>
                   </div>
                   <div class="flow-merge${mergeClass}" data-rendered-from="merge">
@@ -3751,13 +3732,14 @@ hs.alert.show("Hammerspoon config loaded (Multiple Projects)")
               `);
             }
 
-            if (!hasNext) {
+            if (stepIsTerminal) {
+               // Nothing after terminal steps
+            } else if (!hasNext) {
               // メインフローの末尾の場合のみループを描画
               if (
                 isTopLevel &&
                 txt("enableLoop", "true") === "true" &&
-                step.kind !== "stop" &&
-                step.kind !== "jump"
+                !stepIsTerminal
               ) {
                 nodes.push(`
                 <div class="flow-connector flow-loop-connector" data-rendered-from="loop">
@@ -3769,31 +3751,25 @@ hs.alert.show("Hammerspoon config loaded (Multiple Projects)")
               `);
               }
 
-              // ブランチの末尾かつ、STOP/JUMPでない場合にブランチ待機を表示
-              if (!isTopLevel && branchWaitInfo) {
-                if (step.kind !== "stop" && step.kind !== "jump") {
-                  const waitSeconds = normalizeWaitAfter(
-                    branchWaitInfo.value,
-                    0.5,
-                  );
-                  nodes.push(`
-                  <div class="flow-connector is-branch">
-                    <div class="flow-connector-pill">
-                      <span class="flow-connector-dot"></span>
-                      待機
-                      <input data-field="${branchWaitInfo.field}" data-step-id="${branchWaitInfo.parentStepId}" type="number" min="0" step="0.05" value="${waitSeconds.toFixed(2)}" />
-                      s
-                    </div>
+              // ブランチの末尾かつ、終了ステップでない場合にブランチ待機を表示
+              if (!isTopLevel && branchWaitInfo && !stepIsTerminal) {
+                const waitSeconds = normalizeWaitAfter(
+                  branchWaitInfo.value,
+                  0.5,
+                );
+                nodes.push(`
+                <div class="flow-connector is-branch">
+                  <div class="flow-connector-pill">
+                    <span class="flow-connector-dot"></span>
+                    待機
+                    <input data-field="${branchWaitInfo.field}" data-step-id="${branchWaitInfo.parentStepId}" type="number" min="0" step="0.05" value="${waitSeconds.toFixed(2)}" />
+                    s
                   </div>
-                `);
-                }
+                </div>
+              `);
               }
-            } else if (
-              step.kind !== "stop" &&
-              step.kind !== "jump" &&
-              step.kind !== "check"
-            ) {
-              // 待機コネクタ（メインフローまたはブランチ内のステップ間）
+            } else if (!stepIsTerminal) {
+              // 待機コネクタ（原則すべてのステップの後）
               const waitSeconds = normalizeWaitAfter(
                 step.waitAfter,
                 defaultWaitSecondsForIndex(index),
