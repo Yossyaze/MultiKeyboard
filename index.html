@@ -3406,23 +3406,20 @@ hs.alert.show("Hammerspoon config loaded (Multiple Projects)")
             const stepNum = globalStepIndex++;
             const hasNext = index < steps.length - 1;
 
-            // CHECKステップの末尾判定を共通化
-            const okEnds =
+            // STOPステップ（または両ブランチがSTOPで終わるCHECK）のみを「待機なし」の例外とする
+            const okEndsStop =
               step.kind === "check" &&
               step.okBranch &&
               step.okBranch.length > 0 &&
-              (step.okBranch[step.okBranch.length - 1].kind === "stop" ||
-                step.okBranch[step.okBranch.length - 1].kind === "jump");
-            const ngEnds =
+              step.okBranch[step.okBranch.length - 1].kind === "stop";
+            const ngEndsStop =
               step.kind === "check" &&
               step.ngBranch &&
               step.ngBranch.length > 0 &&
-              (step.ngBranch[step.ngBranch.length - 1].kind === "stop" ||
-                step.ngBranch[step.ngBranch.length - 1].kind === "jump");
-            const stepIsTerminal =
+              step.ngBranch[step.ngBranch.length - 1].kind === "stop";
+            const isStopStep =
               step.kind === "stop" ||
-              step.kind === "jump" ||
-              (step.kind === "check" && okEnds && ngEnds);
+              (step.kind === "check" && okEndsStop && ngEndsStop);
 
             const ipadIcon = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="16" height="20" x="4" y="2" rx="2" ry="2"/><line x1="12" x2="12" y1="18" y2="18"/></svg>`;
             const iphoneIcon = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="10" height="18" x="7" y="3" rx="2" ry="2"/><line x1="12" x2="12" y1="17" y2="17"/></svg>`;
@@ -3682,9 +3679,9 @@ hs.alert.show("Hammerspoon config loaded (Multiple Projects)")
               });
 
               let mergeClass = "";
-              if (okEnds && ngEnds) mergeClass = " both-ends";
-              else if (okEnds) mergeClass = " ok-ends";
-              else if (ngEnds) mergeClass = " ng-ends";
+              if (okEndsStop && ngEndsStop) mergeClass = " both-ends";
+              else if (okEndsStop) mergeClass = " ok-ends";
+              else if (ngEndsStop) mergeClass = " ng-ends";
 
               const okBeforeConnector = `
                 <div class="flow-connector is-branch">
@@ -3732,16 +3729,24 @@ hs.alert.show("Hammerspoon config loaded (Multiple Projects)")
               `);
             }
 
-            if (stepIsTerminal) {
-               // Nothing after terminal steps
+            if (isStopStep) {
+              // STOP系は待機なし
             } else if (!hasNext) {
-              // メインフローの末尾の場合のみループを描画
-              if (
-                isTopLevel &&
-                txt("enableLoop", "true") === "true" &&
-                !stepIsTerminal
-              ) {
+              // (1) メインフローの末尾かつループ有効な場合：待機＋ループピル
+              if (isTopLevel && txt("enableLoop", "true") === "true") {
+                const waitSeconds = normalizeWaitAfter(
+                  step.waitAfter,
+                  defaultWaitSecondsForIndex(index),
+                );
                 nodes.push(`
+                <div class="flow-connector">
+                  <div class="flow-connector-pill">
+                    <span class="flow-connector-dot"></span>
+                    待機
+                    <input data-field="waitAfter" data-step-id="${step.id}" type="number" min="0" step="0.05" value="${waitSeconds.toFixed(2)}" />
+                    s
+                  </div>
+                </div>
                 <div class="flow-connector flow-loop-connector" data-rendered-from="loop">
                   <div class="flow-connector-pill flow-loop-pill">
                     <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m17 2 4 4-4 4"/><path d="M3 11v-1a4 4 0 0 1 4-4h14"/></svg>
@@ -3749,10 +3754,8 @@ hs.alert.show("Hammerspoon config loaded (Multiple Projects)")
                   </div>
                 </div>
               `);
-              }
-
-              // ブランチの末尾かつ、終了ステップでない場合にブランチ待機を表示
-              if (!isTopLevel && branchWaitInfo && !stepIsTerminal) {
+              } else if (!isTopLevel && branchWaitInfo) {
+                // (2) ブランチの末尾：ブランチ終了待機を表示
                 const waitSeconds = normalizeWaitAfter(
                   branchWaitInfo.value,
                   0.5,
@@ -3768,8 +3771,8 @@ hs.alert.show("Hammerspoon config loaded (Multiple Projects)")
                 </div>
               `);
               }
-            } else if (!stepIsTerminal) {
-              // 待機コネクタ（原則すべてのステップの後）
+            } else {
+              // (3) 通常のステップ間待機（原則すべて）
               const waitSeconds = normalizeWaitAfter(
                 step.waitAfter,
                 defaultWaitSecondsForIndex(index),
