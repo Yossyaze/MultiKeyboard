@@ -1166,13 +1166,11 @@
         content: "";
         position: absolute;
         top: 0; 
-        left: calc(25% - 1px);
-        right: calc(25% - 1px);
-        height: 16px;
-        border-left: 2px solid #cbd5e1;
-        border-right: 2px solid #cbd5e1;
-        border-bottom: 2px solid #cbd5e1;
-        z-index: 1; /* ハコ(z-index:2)より下にする */
+        left: 0;
+        right: 0;
+        height: 2px;
+        background: #cbd5e1;
+        z-index: 1;
         pointer-events: none;
       }
 
@@ -1183,17 +1181,15 @@
         left: 50%;
         transform: translateX(-50%);
         width: 2px;
-        height: 52px;
+        height: 16px; /* 水平線からPillまでの距離 */
         background: #cbd5e1;
       }
 
       .flow-merge.ok-ends::before {
-        border-left: none;
-        left: calc(50% - 1px);
+        left: 50%;
       }
       .flow-merge.ng-ends::before {
-        border-right: none;
-        right: calc(50% - 1px);
+        right: 50%;
       }
       .flow-merge.both-ends::before,
       .flow-merge.both-ends::after {
@@ -3707,14 +3703,16 @@ hs.alert.show("Hammerspoon config loaded (Multiple Projects)")
                   <div class="flow-split-col ok${selectedBranch && selectedBranch.checkId === step.id && selectedBranch.branchType === "ok" ? " selected" : ""}" data-branch-type="ok" data-parent-id="${step.id}">
                     <div class="flow-split-header">✅ OK (見つかった時)</div>
                     ${okBeforeConnector}
-                    ${okHtml || `<div class="flow-split-empty">ここにドロップ</div><div class="flow-branch-end-connector"><div class="flow-branch-end-connector-line"></div></div>`}
+                    ${okHtml || `<div class="flow-split-empty">ここにドロップ</div>`}
                     ${okAfterConnector}
+                    <div class="flow-branch-end-connector"><div class="flow-branch-end-connector-line"></div></div>
                   </div>
                   <div class="flow-split-col ng${selectedBranch && selectedBranch.checkId === step.id && selectedBranch.branchType === "ng" ? " selected" : ""}" data-branch-type="ng" data-parent-id="${step.id}">
                     <div class="flow-split-header">❌ NG (見つからない時)</div>
                     ${ngBeforeConnector}
-                    ${ngHtml || `<div class="flow-split-empty">ここにドロップ</div><div class="flow-branch-end-connector"><div class="flow-branch-end-connector-line"></div></div>`}
+                    ${ngHtml || `<div class="flow-split-empty">ここにドロップ</div>`}
                     ${ngAfterConnector}
+                    <div class="flow-branch-end-connector"><div class="flow-branch-end-connector-line"></div></div>
                   </div>
                 </div>
                 <div class="flow-merge${mergeClass}">
@@ -3753,7 +3751,7 @@ hs.alert.show("Hammerspoon config loaded (Multiple Projects)")
                   </div>
                 `);
               }
-            } else if (step.kind !== "stop" && step.kind !== "jump") {
+            } else if (step.kind !== "stop" && step.kind !== "jump" && step.kind !== "check") {
               // 待機コネクタ
               const waitSeconds = normalizeWaitAfter(
                 step.waitAfter,
