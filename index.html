@@ -217,6 +217,14 @@
         width: 100%;
       }
 
+      /* 分岐内専用のコネクタスタイル（個別に調整可能） */
+      .flow-connector.is-branch {
+        padding: 4px 0; /* メインフロー(8px)より短く設定 */
+      }
+      .flow-connector.is-branch:last-child {
+        padding-bottom: 0;
+      }
+
       .flow-connector-dot {
         width: 6px;
         height: 6px;
@@ -1157,10 +1165,10 @@
       .flow-merge::before {
         content: "";
         position: absolute;
-        top: -20px; /* flow-trackのgap(20px)を完全にカバー */
+        top: 0; 
         left: calc(25% - 1px);
         right: calc(25% - 1px);
-        height: 20px;
+        height: 16px;
         border-left: 2px solid #cbd5e1;
         border-right: 2px solid #cbd5e1;
         border-bottom: 2px solid #cbd5e1;
@@ -2038,6 +2046,8 @@
           s.appName = (step.appName || "EX Master").trim();
         } else if (s.kind === "check") {
           s.text = (step.text || "アムネディア降臨！！").trim();
+          s.okWaitBefore = normalizeWaitAfter(step.okWaitBefore, 0.5);
+          s.ngWaitBefore = normalizeWaitAfter(step.ngWaitBefore, 0.5);
           s.okWaitAfter = normalizeWaitAfter(step.okWaitAfter, 0.5);
           s.ngWaitAfter = normalizeWaitAfter(step.ngWaitAfter, 0.5);
           // ブランチ方式: OK/NGそれぞれのステップ配列
@@ -2373,24 +2383,32 @@ local function createSequence(config)
       return
     elseif bStep.type == "check" then
         local branch = {}
-        local waitBefore = bStep.okWaitAfter or 0.5
+        local waitBefore = 0.5
+        local waitAfter = 0.5
         if exitCode == 0 and stdOut and string.find(stdOut, bStep.text, 1, true) then
           logStep(config.enableTimelineLog, cycleCount, "CHECK_MATCH", bStep.text)
           branch = bStep.okBranch or {}
-          waitBefore = bStep.okWaitAfter or 0.5
+          waitBefore = bStep.okWaitBefore or 0.5
+          waitAfter = bStep.okWaitAfter or 0.5
         else
           logStep(config.enableTimelineLog, cycleCount, "CHECK_NO_MATCH", bStep.text)
           branch = bStep.ngBranch or {}
-          waitBefore = bStep.ngWaitAfter or 0.5
+          waitBefore = bStep.ngWaitBefore or 0.5
+          waitAfter = bStep.ngWaitAfter or 0.5
         end
         logStep(config.enableTimelineLog, cycleCount, "BRANCH_WAIT_START", string.format("%.2fs", waitBefore))
         config._timer = hs.timer.doAfter(waitBefore, function()
           config._timer = nil
           executeBranch(branch, function(jumpIdx)
-            local waitAfterMerge = bStep.waitAfter or 0.25
-            config._timer = hs.timer.doAfter(waitAfterMerge, function()
+            logStep(config.enableTimelineLog, cycleCount, "BRANCH_WAIT_END", string.format("%.2fs", waitAfter))
+            config._timer = hs.timer.doAfter(waitAfter, function()
               config._timer = nil
-              onDone(jumpIdx)
+              -- CHECKステップ全体の待機
+              local waitTotalAfter = bStep.waitAfter or 0.25
+              config._timer = hs.timer.doAfter(waitTotalAfter, function()
+                config._timer = nil
+                onDone(jumpIdx)
+              end)
             end)
           end)
         end)
@@ -2569,24 +2587,31 @@ local function createSequence(config)
           if not running then return end
           local branch = {}
           local waitBefore = 0.5
+          local waitAfter = 0.5
           if exitCode == 0 and stdOut and string.find(stdOut, step.text, 1, true) then
             logStep(config.enableTimelineLog, cycleCount, "CHECK_MATCH", step.text)
             branch = step.okBranch or {}
-            waitBefore = step.okWaitAfter or 0.5
+            waitBefore = step.okWaitBefore or 0.5
+            waitAfter = step.okWaitAfter or 0.5
           else
             logStep(config.enableTimelineLog, cycleCount, "CHECK_NO_MATCH", step.text)
             branch = step.ngBranch or {}
-            waitBefore = step.ngWaitAfter or 0.5
+            waitBefore = step.ngWaitBefore or 0.5
+            waitAfter = step.ngWaitAfter or 0.5
           end
           logStep(config.enableTimelineLog, cycleCount, "BRANCH_WAIT_START", string.format("%.2fs", waitBefore))
           config._timer = hs.timer.doAfter(waitBefore, function()
             config._timer = nil
             executeBranch(branch, function(jumpIdx)
-              if jumpIdx then
-                continueAfterAction(jumpIdx)
-              else
-                continueAfterAction()
-              end
+              logStep(config.enableTimelineLog, cycleCount, "BRANCH_WAIT_END", string.format("%.2fs", waitAfter))
+              config._timer = hs.timer.doAfter(waitAfter, function()
+                config._timer = nil
+                if jumpIdx then
+                  continueAfterAction(jumpIdx)
+                else
+                  continueAfterAction()
+                end
+              end)
             end)
           end)
         end, {"run", "GetScreenText"})
@@ -2786,7 +2811,7 @@ local all_sequences = {}
                       else if (ns.kind === "focus")
                         fld += `, appName = "${luaString(ns.appName)}"`;
                       else if (ns.kind === "check")
-                        fld += `, text = "${luaString(ns.text)}", okBranch = ${branchToLua(ns.okBranch)}, ngBranch = ${branchToLua(ns.ngBranch)}, okWaitAfter = ${normalizeWaitAfter(ns.okWaitAfter, 0.5).toFixed(2)}, ngWaitAfter = ${normalizeWaitAfter(ns.ngWaitAfter, 0.5).toFixed(2)}`;
+                        fld += `, text = "${luaString(ns.text)}", okBranch = ${branchToLua(ns.okBranch)}, ngBranch = ${branchToLua(ns.ngBranch)}, okWaitBefore = ${normalizeWaitAfter(ns.okWaitBefore, 0.5).toFixed(2)}, ngWaitBefore = ${normalizeWaitAfter(ns.ngWaitBefore, 0.5).toFixed(2)}, okWaitAfter = ${normalizeWaitAfter(ns.okWaitAfter, 0.5).toFixed(2)}, ngWaitAfter = ${normalizeWaitAfter(ns.ngWaitAfter, 0.5).toFixed(2)}`;
                       else if (ns.kind === "jump") {
                         const tl =
                           ns.targetType === "start"
@@ -2802,7 +2827,7 @@ local all_sequences = {}
                     });
                     return "{ " + items.join(", ") + " }";
                   };
-                  return `    { id = ${step.id}, type = "check", label = "${luaString(step.title)}", text = "${luaString(step.text)}", okBranch = ${branchToLua(step.okBranch)}, ngBranch = ${branchToLua(step.ngBranch)}, okWaitAfter = ${normalizeWaitAfter(step.okWaitAfter, 0.5).toFixed(2)}, ngWaitAfter = ${normalizeWaitAfter(step.ngWaitAfter, 0.5).toFixed(2)}, waitAfter = ${normalizeWaitAfter(step.waitAfter, 0.5).toFixed(2)} },`;
+                  return `    { id = ${step.id}, type = "check", label = "${luaString(step.title)}", text = "${luaString(step.text)}", okBranch = ${branchToLua(step.okBranch)}, ngBranch = ${branchToLua(step.ngBranch)}, okWaitBefore = ${normalizeWaitAfter(step.okWaitBefore, 0.5).toFixed(2)}, ngWaitBefore = ${normalizeWaitAfter(step.ngWaitBefore, 0.5).toFixed(2)}, okWaitAfter = ${normalizeWaitAfter(step.okWaitAfter, 0.5).toFixed(2)}, ngWaitAfter = ${normalizeWaitAfter(step.ngWaitAfter, 0.5).toFixed(2)}, waitAfter = ${normalizeWaitAfter(step.waitAfter, 0.5).toFixed(2)} },`;
                 }
                 if (step.kind === "label") {
                   return `    { id = ${step.id}, type = "label", label = "${luaString(step.title)}", labelName = "${luaString(step.labelName)}", waitAfter = 0 },`;
@@ -2947,6 +2972,8 @@ hs.alert.show("Hammerspoon config loaded (Multiple Projects)")
           step.text = "アムネディア降臨！！";
           step.okBranch = [];
           step.ngBranch = [];
+          step.okWaitBefore = 0.5;
+          step.ngWaitBefore = 0.5;
           step.okWaitAfter = 0.5;
           step.ngWaitAfter = 0.5;
           step.waitAfter = 0.5;
@@ -3145,6 +3172,8 @@ hs.alert.show("Hammerspoon config loaded (Multiple Projects)")
           step.moveHotkey = value || "ipadMove";
         } else if (
           field === "waitAfter" ||
+          field === "okWaitBefore" ||
+          field === "ngWaitBefore" ||
           field === "okWaitAfter" ||
           field === "ngWaitAfter" ||
           field === "x" ||
@@ -3628,8 +3657,19 @@ hs.alert.show("Hammerspoon config loaded (Multiple Projects)")
               else if (okEnds) mergeClass = " ok-ends";
               else if (ngEnds) mergeClass = " ng-ends";
 
-              const okConnector = `
-                <div class="flow-connector">
+              const okBeforeConnector = `
+                <div class="flow-connector is-branch">
+                  <div class="flow-connector-line"></div>
+                  <div class="flow-connector-pill">
+                    <span class="flow-connector-dot"></span>
+                    待機
+                    <input data-field="okWaitBefore" data-step-id="${step.id}" type="number" min="0" step="0.05" value="${normalizeWaitAfter(step.okWaitBefore, 0.5).toFixed(2)}" />
+                    s
+                  </div>
+                </div>
+              `;
+              const okAfterConnector = `
+                <div class="flow-connector is-branch">
                   <div class="flow-connector-line"></div>
                   <div class="flow-connector-pill">
                     <span class="flow-connector-dot"></span>
@@ -3639,8 +3679,19 @@ hs.alert.show("Hammerspoon config loaded (Multiple Projects)")
                   </div>
                 </div>
               `;
-              const ngConnector = `
-                <div class="flow-connector">
+              const ngBeforeConnector = `
+                <div class="flow-connector is-branch">
+                  <div class="flow-connector-line"></div>
+                  <div class="flow-connector-pill">
+                    <span class="flow-connector-dot"></span>
+                    待機
+                    <input data-field="ngWaitBefore" data-step-id="${step.id}" type="number" min="0" step="0.05" value="${normalizeWaitAfter(step.ngWaitBefore, 0.5).toFixed(2)}" />
+                    s
+                  </div>
+                </div>
+              `;
+              const ngAfterConnector = `
+                <div class="flow-connector is-branch">
                   <div class="flow-connector-line"></div>
                   <div class="flow-connector-pill">
                     <span class="flow-connector-dot"></span>
@@ -3655,13 +3706,15 @@ hs.alert.show("Hammerspoon config loaded (Multiple Projects)")
                 <div class="flow-split" data-parent-check-id="${step.id}">
                   <div class="flow-split-col ok${selectedBranch && selectedBranch.checkId === step.id && selectedBranch.branchType === "ok" ? " selected" : ""}" data-branch-type="ok" data-parent-id="${step.id}">
                     <div class="flow-split-header">✅ OK (見つかった時)</div>
-                    ${okConnector}
+                    ${okBeforeConnector}
                     ${okHtml || `<div class="flow-split-empty">ここにドロップ</div><div class="flow-branch-end-connector"><div class="flow-branch-end-connector-line"></div></div>`}
+                    ${okAfterConnector}
                   </div>
                   <div class="flow-split-col ng${selectedBranch && selectedBranch.checkId === step.id && selectedBranch.branchType === "ng" ? " selected" : ""}" data-branch-type="ng" data-parent-id="${step.id}">
                     <div class="flow-split-header">❌ NG (見つからない時)</div>
-                    ${ngConnector}
+                    ${ngBeforeConnector}
                     ${ngHtml || `<div class="flow-split-empty">ここにドロップ</div><div class="flow-branch-end-connector"><div class="flow-branch-end-connector-line"></div></div>`}
+                    ${ngAfterConnector}
                   </div>
                 </div>
                 <div class="flow-merge${mergeClass}">
@@ -4288,6 +4341,46 @@ hs.alert.show("Hammerspoon config loaded (Multiple Projects)")
 
       window.addEventListener("keydown", captureHotkey, true);
 
+      window.addEventListener("keydown", function (event) {
+        if (event.key === "Backspace" || event.key === "Delete") {
+          // 入力要素がフォーカスされている場合は何もしない
+          const activeEl = document.activeElement;
+          if (
+            activeEl &&
+            (activeEl.tagName === "INPUT" ||
+              activeEl.tagName === "TEXTAREA" ||
+              activeEl.tagName === "SELECT" ||
+              activeEl.isContentEditable)
+          ) {
+            return;
+          }
+
+          if (selectedStepId) {
+            event.preventDefault();
+            const loc = findStepArrayAndIndex(selectedStepId, flowSteps);
+            if (loc) {
+              loc.array.splice(loc.index, 1);
+              selectedStepId = null;
+              refreshFlowViews();
+              setStatus("ステップを削除しました");
+              saveToStorage();
+            }
+          } else if (selectedBranch) {
+            event.preventDefault();
+            const checkStep = findStepById(selectedBranch.checkId, flowSteps);
+            if (checkStep && checkStep.kind === "check") {
+              const branchKey =
+                selectedBranch.branchType === "ok" ? "okBranch" : "ngBranch";
+              if (checkStep[branchKey] && checkStep[branchKey].length > 0) {
+                checkStep[branchKey] = [];
+                refreshFlowViews();
+                setStatus("ブランチ内のステップをすべて削除しました");
+                saveToStorage();
+              }
+            }
+          }
+        }
+      });
       document
         .getElementById("btnRenameProject")
         .addEventListener("click", () => {
