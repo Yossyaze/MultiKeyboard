@@ -147,14 +147,25 @@
 
       .flow-track {
         display: grid;
-        grid-template-columns: 1fr;
-        gap: 20px;
+        grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+        column-gap: var(--flow-branch-gap);
+        row-gap: 20px;
         position: relative;
         padding: 40px 20px;
         justify-items: stretch;
         width: 100%;
         max-width: 800px;
         margin: 0 auto;
+      }
+
+      .flow-track > .flow-step,
+      .flow-track > .flow-connector,
+      .flow-track > .flow-loop-connector {
+        grid-column: 1;
+      }
+
+      .flow-track > .flow-check-block {
+        grid-column: 1 / -1;
       }
 
       .flow-step {
@@ -220,47 +231,33 @@
       /* 分岐内専用のコネクタスタイル（個別に調整可能） */
       .flow-connector.is-branch {
         padding: 4px 0; /* メインフロー(8px)より短く設定 */
+        overflow: visible;
       }
       .flow-connector.is-branch:last-child {
         padding-bottom: 0;
       }
 
-      .flow-connector-dot {
-        width: 6px;
-        height: 6px;
-        background: #94a3b8;
-        border-radius: 50%;
-      }
 
       /* Loop Indicator */
       .flow-loop-connector {
-        margin-bottom: 20px;
+        margin-bottom: 8px;
       }
-      /* 共通の線スタイル */
-      .flow-line-v,
-      .flow-connector-line,
-      .flow-branch-end-connector-line,
-      .flow-merge-bottom-line,
-      .flow-merge::after,
-      .flow-split::after {
+
+      .flow-edge-v {
         position: absolute;
         left: 50%;
-        transform: translateX(-50%);
+        top: -24px;
+        bottom: -24px;
         width: 2px;
         background: var(--line);
-        z-index: 0;
-      }
-      .flow-line-h,
-      .flow-merge::before {
-        position: absolute;
-        height: 2px;
-        background: var(--line);
+        transform: translateX(-50%);
         z-index: 0;
       }
 
-      .flow-connector-line {
-        top: -24px;
-        bottom: -24px;
+      .flow-connector.is-branch .flow-edge-v,
+      .flow-loop-connector .flow-edge-v {
+        top: -12px;
+        bottom: -12px;
       }
 
       .flow-connector-pill {
@@ -289,6 +286,7 @@
         color: #294861;
       }
 
+      /* Connector dot used inside connector pills */
       .flow-connector-dot {
         width: 8px;
         height: 8px;
@@ -1053,37 +1051,90 @@
         color: var(--accent);
       }
 
+      /* ========== CHECK ブロック（分割と合流の親コンテナ） ========== */
+      .flow-check-block {
+        position: relative;
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+        column-gap: var(--flow-branch-gap);
+        width: 100%;
+        --flow-branch-gap: 18px;
+        --flow-branch-quarter-gap: 4.5px;
+        --flow-ok-line-x: calc(25% - var(--flow-branch-quarter-gap));
+        --flow-ng-line-x: calc(75% + var(--flow-branch-quarter-gap));
+        --flow-branch-drop: 20px;
+      }
+
+      .flow-check-card {
+        position: relative;
+        grid-column: 1;
+        z-index: 2;
+      }
+
+      .flow-line-layer {
+        position: absolute;
+        inset: 0;
+        pointer-events: none;
+        z-index: 1;
+      }
+
+      .flow-edge-check-ng-out,
+      .flow-edge-check-ng-drop,
+      .flow-edge-check-ok,
+      .flow-edge-check-ng,
+      .flow-edge-merge-h,
+      .flow-edge-merge-down {
+        position: absolute;
+        background: #cbd5e1;
+        pointer-events: none;
+        z-index: 0;
+      }
+
+      .flow-edge-check-ng-out {
+        left: 100%;
+        top: 50%;
+        width: calc(50% + var(--flow-branch-gap));
+        height: 2px;
+        transform: translateY(-1px);
+      }
+
+      .flow-edge-check-ng-drop {
+        left: calc(150% + var(--flow-branch-gap));
+        top: 50%;
+        height: calc(50% + var(--flow-branch-drop));
+        width: 2px;
+        transform: translateX(-1px);
+      }
+
       /* ========== フロー分割（枝分かれ）レイアウト ========== */
       .flow-split {
-        display: grid;
-        grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); /* 中身の幅に依存せず強制的に50:50にする */
-        gap: 0;
         position: relative;
-        padding-top: 16px;
-        margin-top: 8px;
+        grid-column: 1 / -1;
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+        column-gap: var(--flow-branch-gap);
+        row-gap: 0;
+        padding-top: var(--flow-branch-drop);
+        margin-top: 0;
         width: 100%;
         box-sizing: border-box;
+        min-height: 0;
       }
 
-      /* 分岐の線 */
-      .flow-split::before {
-        content: "";
-        position: absolute;
+      .flow-edge-check-ok {
+        left: var(--flow-ok-line-x);
         top: 0;
-        left: calc(25% - 1px);
-        right: calc(25% - 1px);
-        height: 16px; /* padding-topと一致 */
-        border-top: 2px solid #cbd5e1;
-        border-left: 2px solid #cbd5e1;
-        border-right: 2px solid #cbd5e1;
-        z-index: 1; /* 手前のハコ(z-index:2)より下にする */
-        pointer-events: none;
+        bottom: 0;
+        width: 2px;
+        transform: translateX(-1px);
       }
 
-      .flow-split::after {
-        content: "";
-        top: -28px; /* gap(20px) + margin-top(8px) と正確に一致 */
-        height: 28px;
+      .flow-edge-check-ng {
+        left: var(--flow-ng-line-x);
+        top: 0;
+        bottom: 0;
+        width: 2px;
+        transform: translateX(-1px);
       }
 
       .flow-split-col {
@@ -1093,13 +1144,17 @@
         align-items: stretch;
         gap: 8px;
         position: relative;
-        padding: 0 8px; /* gapの代わりにパディングで余白を確保 */
+        padding: 0 8px;
         margin: 0;
+        z-index: 2;
       }
 
-      .flow-split-col::before {
-        /* 親要素の.flow-split::beforeで一括描画するため廃止 */
-        display: none;
+      .flow-split-col.ok {
+        padding-top: 0;
+      }
+
+      .flow-split-col.ng {
+        padding-top: 0;
       }
 
       .flow-split-header {
@@ -1148,36 +1203,38 @@
       }
 
       .flow-merge {
-        display: flex;
-        justify-content: center;
-        align-items: flex-start;
+        grid-column: 1 / -1;
+        display: block;
         position: relative;
-        padding: 16px 0 8px;
+        padding: 10px 0 4px;
+        margin-top: 0;
         width: 100%;
+        min-height: 24px;
         box-sizing: border-box;
       }
 
-      .flow-merge::before {
-        content: "";
-        top: 0; 
-        left: calc(25% - 1px);
-        right: calc(25% - 1px);
+      .flow-edge-merge-h {
+        top: 12px;
+        left: var(--flow-ok-line-x);
+        right: calc(100% - var(--flow-ng-line-x));
+        height: 2px;
       }
 
-      .flow-merge::after {
-        content: "";
+      .flow-edge-merge-down {
         top: 0;
-        height: 16px; /* 水平線からPillまでの距離 */
+        height: 10px; /* 水平線からPillまでの距離 */
+        left: var(--flow-ok-line-x);
+        width: 2px;
+        transform: translateX(-1px);
       }
 
-      .flow-merge.ok-ends::before {
-        left: 50%;
+      .flow-merge.ok-ends .flow-edge-merge-h {
+        left: var(--flow-ng-line-x);
       }
-      .flow-merge.ng-ends::before {
-        right: 50%;
+      .flow-merge.ng-ends .flow-edge-merge-h {
+        right: calc(100% - var(--flow-ok-line-x));
       }
-      .flow-merge.both-ends::before,
-      .flow-merge.both-ends::after {
+      .flow-merge.both-ends .flow-line-layer {
         display: none;
       }
       .flow-merge.both-ends .flow-merge-pill {
@@ -1186,26 +1243,10 @@
       .flow-merge.both-ends {
         padding: 0;
       }
-
-      .flow-branch-end-connector {
-        position: relative;
-        flex-grow: 1;
-        min-height: 0;
-      }
-      .flow-branch-end-connector-line {
-        top: -8px;
-        bottom: 0;
-      }
-
-      .flow-merge-bottom-line {
-        bottom: -10px;
-        height: 10px;
-      }
-      .flow-merge.both-ends .flow-merge-bottom-line {
-        display: none;
-      }
-
       .flow-merge-pill {
+        position: absolute;
+        left: var(--flow-ok-line-x);
+        transform: translateX(-50%);
         display: inline-flex;
         align-items: center;
         padding: 3px 12px;
@@ -3581,7 +3622,7 @@ hs.alert.show("Hammerspoon config loaded (Multiple Projects)")
                               ? "label"
                               : "key";
 
-            nodes.push(`
+            const stepCardHtml = `
             <article class="flow-step${selectedStepId === step.id ? " selected" : ""}" draggable="true" data-step-id="${step.id}">
               <div class="flow-step-header">
                 <div class="flow-step-title">
@@ -3603,7 +3644,11 @@ hs.alert.show("Hammerspoon config loaded (Multiple Projects)")
                 </div>
               </div>
             </article>
-          `);
+          `;
+
+            if (step.kind !== "check") {
+              nodes.push(stepCardHtml);
+            }
 
             // CHECKステップの場合、カードの直下に分岐コンテナ（OK/NGカラム）を描画する
             if (step.kind === "check") {
@@ -3628,7 +3673,7 @@ hs.alert.show("Hammerspoon config loaded (Multiple Projects)")
 
               const okBeforeConnector = `
                 <div class="flow-connector is-branch">
-                  <div class="flow-connector-line"></div>
+                  <span class="flow-edge-v" aria-hidden="true"></span>
                   <div class="flow-connector-pill">
                     <span class="flow-connector-dot"></span>
                     待機
@@ -3639,7 +3684,7 @@ hs.alert.show("Hammerspoon config loaded (Multiple Projects)")
               `;
               const okAfterConnector = `
                 <div class="flow-connector is-branch">
-                  <div class="flow-connector-line"></div>
+                  <span class="flow-edge-v" aria-hidden="true"></span>
                   <div class="flow-connector-pill">
                     <span class="flow-connector-dot"></span>
                     待機
@@ -3650,7 +3695,7 @@ hs.alert.show("Hammerspoon config loaded (Multiple Projects)")
               `;
               const ngBeforeConnector = `
                 <div class="flow-connector is-branch">
-                  <div class="flow-connector-line"></div>
+                  <span class="flow-edge-v" aria-hidden="true"></span>
                   <div class="flow-connector-pill">
                     <span class="flow-connector-dot"></span>
                     待機
@@ -3661,7 +3706,7 @@ hs.alert.show("Hammerspoon config loaded (Multiple Projects)")
               `;
               const ngAfterConnector = `
                 <div class="flow-connector is-branch">
-                  <div class="flow-connector-line"></div>
+                  <span class="flow-edge-v" aria-hidden="true"></span>
                   <div class="flow-connector-pill">
                     <span class="flow-connector-dot"></span>
                     待機
@@ -3671,26 +3716,39 @@ hs.alert.show("Hammerspoon config loaded (Multiple Projects)")
                 </div>
               `;
 
+              // CHECK専用の線レイヤーで、右分岐と合流を描画する
               nodes.push(`
-                <div class="flow-split" data-parent-check-id="${step.id}">
-                  <div class="flow-split-col ok${selectedBranch && selectedBranch.checkId === step.id && selectedBranch.branchType === "ok" ? " selected" : ""}" data-branch-type="ok" data-parent-id="${step.id}">
-                    <div class="flow-split-header">✅ OK (見つかった時)</div>
-                    ${okBeforeConnector}
-                    ${okHtml || `<div class="flow-split-empty">ここにドロップ</div>`}
-                    ${okAfterConnector}
-                    <div class="flow-branch-end-connector"><div class="flow-branch-end-connector-line"></div></div>
+                <div class="flow-check-block${mergeClass}">
+                  <div class="flow-check-card">
+                    <span class="flow-edge-check-ng-out" aria-hidden="true"></span>
+                    <span class="flow-edge-check-ng-drop" aria-hidden="true"></span>
+                    ${stepCardHtml}
                   </div>
-                  <div class="flow-split-col ng${selectedBranch && selectedBranch.checkId === step.id && selectedBranch.branchType === "ng" ? " selected" : ""}" data-branch-type="ng" data-parent-id="${step.id}">
-                    <div class="flow-split-header">❌ NG (見つからない時)</div>
-                    ${ngBeforeConnector}
-                    ${ngHtml || `<div class="flow-split-empty">ここにドロップ</div>`}
-                    ${ngAfterConnector}
-                    <div class="flow-branch-end-connector"><div class="flow-branch-end-connector-line"></div></div>
+                  <div class="flow-split" data-parent-check-id="${step.id}">
+                    <div class="flow-line-layer" aria-hidden="true">
+                      <span class="flow-edge-check-ok"></span>
+                      <span class="flow-edge-check-ng"></span>
+                    </div>
+                    <div class="flow-split-col ok${selectedBranch && selectedBranch.checkId === step.id && selectedBranch.branchType === "ok" ? " selected" : ""}" data-branch-type="ok" data-parent-id="${step.id}">
+                      <div class="flow-split-header">✅ OK (見つかった時)</div>
+                      ${okBeforeConnector}
+                      ${okHtml || `<div class="flow-split-empty">ここにドロップ</div>`}
+                      ${okAfterConnector}
+                    </div>
+                    <div class="flow-split-col ng${selectedBranch && selectedBranch.checkId === step.id && selectedBranch.branchType === "ng" ? " selected" : ""}" data-branch-type="ng" data-parent-id="${step.id}">
+                      <div class="flow-split-header">❌ NG (見つからない時)</div>
+                      ${ngBeforeConnector}
+                      ${ngHtml || `<div class="flow-split-empty">ここにドロップ</div>`}
+                      ${ngAfterConnector}
+                    </div>
                   </div>
-                </div>
-                <div class="flow-merge${mergeClass}">
-                  <span class="flow-merge-pill">↓ メインフローに合流</span>
-                  <div class="flow-merge-bottom-line"></div>
+                  <div class="flow-merge${mergeClass}" data-rendered-from="merge">
+                    <div class="flow-line-layer" aria-hidden="true">
+                      <span class="flow-edge-merge-h"></span>
+                      <span class="flow-edge-merge-down"></span>
+                    </div>
+                    <span class="flow-merge-pill">↓ メインフローに合流</span>
+                  </div>
                 </div>
               `);
             }
@@ -3703,26 +3761,16 @@ hs.alert.show("Hammerspoon config loaded (Multiple Projects)")
                 step.kind !== "stop" &&
                 step.kind !== "jump"
               ) {
+                // ループ用コネクタはここで追加（末尾）
                 nodes.push(`
-                <div class="flow-connector flow-loop-connector">
-                  <div class="flow-connector-line flow-loop-line"></div>
+                <div class="flow-connector flow-loop-connector" data-rendered-from="loop">
+                  <span class="flow-edge-v" aria-hidden="true"></span>
                   <div class="flow-connector-pill flow-loop-pill">
                     <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m17 2 4 4-4 4"/><path d="M3 11v-1a4 4 0 0 1 4-4h14"/></svg>
                     最初に戻ってループ
                   </div>
                 </div>
               `);
-              } else if (
-                !isTopLevel &&
-                step.kind !== "stop" &&
-                step.kind !== "jump"
-              ) {
-                // ブランチ末尾から合流地点への線
-                nodes.push(`
-                  <div class="flow-branch-end-connector">
-                    <div class="flow-branch-end-connector-line"></div>
-                  </div>
-                `);
               }
             } else if (step.kind !== "stop" && step.kind !== "jump" && step.kind !== "check") {
               // 待機コネクタ
@@ -3732,7 +3780,7 @@ hs.alert.show("Hammerspoon config loaded (Multiple Projects)")
               );
               nodes.push(`
               <div class="flow-connector">
-                <div class="flow-connector-line"></div>
+                <span class="flow-edge-v" aria-hidden="true"></span>
                 <div class="flow-connector-pill">
                   <span class="flow-connector-dot"></span>
                   待機
