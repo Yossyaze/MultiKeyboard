@@ -369,6 +369,34 @@
         color: #723b13;
       }
 
+      .flow-kind-label {
+        background: #f5f3ff;
+        color: #5b21b6;
+      }
+
+      .flow-summary-bar {
+        margin-top: 8px;
+        padding: 4px 8px;
+        background: #f1f5f9;
+        border-radius: 4px;
+        font-size: 0.72rem;
+        color: #475569;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        border-left: 3px solid #cbd5e1;
+      }
+
+      .flow-summary-arrow {
+        color: #94a3b8;
+        font-weight: bold;
+      }
+
+      .flow-summary-target {
+        font-weight: 700;
+        color: #1e293b;
+      }
+
       .flow-value {
         margin: 0;
         padding: 4px 7px;
@@ -459,6 +487,11 @@
         background: #fdf6b2;
         color: #723b13;
         border: 1px solid #fce96a;
+      }
+      .mini-step-label {
+        background: #f5f3ff;
+        color: #5b21b6;
+        border: 1px solid #ddd6fe;
       }
 
       .mini-arrow {
@@ -609,6 +642,12 @@
         background: #fef2f2;
         color: #991b1b;
         border: 1px solid #fecaca;
+      }
+
+      #btnFlowAddLabel {
+        background: #f5f3ff;
+        color: #5b21b6;
+        border: 1px solid #ddd6fe;
       }
 
       .flow-pill {
@@ -1155,6 +1194,9 @@
                 <button type="button" class="flow-add-btn" id="btnFlowAddStop">
                   ＋ 停止
                 </button>
+                <button type="button" class="flow-add-btn" id="btnFlowAddLabel">
+                  ＋ ラベル
+                </button>
               </div>
             </div>
 
@@ -1634,6 +1676,7 @@
         if (kind === "wait") return "指定時間待機";
         if (kind === "jump") return "ジャンプ";
         if (kind === "stop") return "実行停止";
+        if (kind === "label") return "ラベル";
         return "キー送信";
       }
 
@@ -1677,9 +1720,14 @@
         } else if (s.kind === "wait") {
           s.waitAfter = normalizeWaitAfter(step.waitAfter, 1.0);
         } else if (s.kind === "jump") {
+          s.targetType = step.targetType || "label";
           s.targetId = step.targetId ? Number(step.targetId) : null;
+          s.targetLabel = step.targetLabel || "";
         } else if (s.kind === "stop") {
           // No extra fields
+        } else if (s.kind === "label") {
+          s.labelName = (step.labelName || "MyLabel").trim();
+          s.waitAfter = 0;
         } else {
           s.kind = "key";
           s.key = (step.key || "space").trim().toLowerCase() || "space";
@@ -1934,8 +1982,12 @@ local function createSequence(config)
   local cycleCount = 0
 
   local stepIdToIndex = {}
+  local labelToIndex = {}
   for i, s in ipairs(config.steps) do
     stepIdToIndex[s.id] = i
+    if s.type == "label" and s.labelName then
+      labelToIndex[s.labelName] = i
+    end
   end
 
   local function runCycle()
@@ -2025,6 +2077,15 @@ local function createSequence(config)
             logStep(config.enableTimelineLog, cycleCount, "ERROR", "Jump target not found: " .. targetId)
             continueAfterAction()
           end
+        elseif action == "jumpLabel" and targetId then
+          local nextIdx = (targetId == "__START__") and 1 or labelToIndex[targetId]
+          if nextIdx then
+            logStep(config.enableTimelineLog, cycleCount, "STEP_JUMP_LABEL", string.format("to label=%s index=%d", targetId, nextIdx))
+            continueAfterAction(nextIdx)
+          else
+            logStep(config.enableTimelineLog, cycleCount, "ERROR", "Jump target label not found: " .. targetId)
+            continueAfterAction()
+          end
         else
           continueAfterAction()
         end
@@ -2050,13 +2111,23 @@ local function createSequence(config)
         task:start()
       elseif step.type == "wait" then
         continueAfterAction()
+      elseif step.type == "label" then
+        continueAfterAction()
       elseif step.type == "jump" then
-        local nextIdx = stepIdToIndex[step.targetId]
+        local nextIdx = nil
+        if step.targetLabel == "__START__" then
+          nextIdx = 1
+        elseif step.targetLabel then
+          nextIdx = labelToIndex[step.targetLabel]
+        elseif step.targetId then
+          nextIdx = stepIdToIndex[step.targetId]
+        end
+        
         if nextIdx then
-          logStep(config.enableTimelineLog, cycleCount, "STEP_JUMP", string.format("to id=%d index=%d", step.targetId, nextIdx))
+          logStep(config.enableTimelineLog, cycleCount, "STEP_JUMP", string.format("to label=%s index=%d", step.targetLabel or "nil", nextIdx))
           continueAfterAction(nextIdx)
         else
-          logStep(config.enableTimelineLog, cycleCount, "ERROR", "Jump target not found: " .. (step.targetId or "nil"))
+          logStep(config.enableTimelineLog, cycleCount, "ERROR", "Jump target not found: " .. (step.targetLabel or step.targetId or "nil"))
           continueAfterAction()
         end
       elseif step.type == "stop" then
@@ -2219,11 +2290,16 @@ local all_sequences = {}
                   }
                   return `    { id = ${step.id}, type = "check", label = "${luaString(step.title)}", text = "${luaString(step.text)}", ifFoundAction = "${step.ifFoundAction || "stop"}", ifFoundTargetId = ${step.ifFoundTargetId || "nil"}, ifNotFoundAction = "${step.ifNotFoundAction || "continue"}", ifNotFoundTargetId = ${step.ifNotFoundTargetId || "nil"}, waitAfter = ${normalizeWaitAfter(step.waitAfter, 0.5).toFixed(2)} },`;
                 }
+                if (step.kind === "label") {
+                  return `    { id = ${step.id}, type = "label", label = "${luaString(step.title)}", labelName = "${luaString(step.labelName)}", waitAfter = 0 },`;
+                }
                 if (step.kind === "wait") {
                   return `    { id = ${step.id}, type = "wait", label = "${luaString(step.title)}", waitAfter = ${normalizeWaitAfter(step.waitAfter, 1.0).toFixed(2)} },`;
                 }
                 if (step.kind === "jump") {
-                  return `    { id = ${step.id}, type = "jump", label = "${luaString(step.title)}", targetId = ${step.targetId || "nil"}, waitAfter = ${normalizeWaitAfter(step.waitAfter, 0.25).toFixed(2)} },`;
+                  const targetLabel = (step.targetType === "start") ? "__START__" : (step.targetType === "label" ? step.targetLabel : null);
+                  const targetId = (step.targetType === "step") ? step.targetId : "nil";
+                  return `    { id = ${step.id}, type = "jump", label = "${luaString(step.title)}", targetLabel = ${targetLabel ? '"' + luaString(targetLabel) + '"' : "nil"}, targetId = ${targetId}, waitAfter = ${normalizeWaitAfter(step.waitAfter, 0.25).toFixed(2)} },`;
                 }
                 if (step.kind === "stop") {
                   return `    { id = ${step.id}, type = "stop", label = "${luaString(step.title)}", waitAfter = ${normalizeWaitAfter(step.waitAfter, 0.25).toFixed(2)} },`;
@@ -2465,12 +2541,20 @@ hs.alert.show("Hammerspoon config loaded (Multiple Projects)")
           field === "targetId"
         ) {
           step[field] = value ? Number(value) : null;
+        } else if (field === "targetType" || field === "targetLabel" || field === "labelName") {
+          step[field] = value;
         } else {
           step[field] = value;
         }
 
         Object.assign(step, normalizeStep(step));
         refreshFlowViews();
+      }
+
+      function getStepLabelById(id) {
+        const idx = flowSteps.findIndex((s) => s.id === id);
+        if (idx === -1) return "不明";
+        return `Step ${idx + 1}`;
       }
 
       function updateFlowPreview() {
@@ -2503,6 +2587,8 @@ hs.alert.show("Hammerspoon config loaded (Multiple Projects)")
             icon = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 17l5-5-5-5M6 17l5-5-5-5"/></svg>`;
           } else if (step.kind === "stop") {
             icon = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="18" x="3" y="3" rx="2" ry="2"/><path d="M9 9h6v6H9z"/></svg>`;
+          } else if (step.kind === "label") {
+            icon = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"/><line x1="4" x2="4" y1="22" y2="15"/></svg>`;
           }
 
           let displayContent = "";
@@ -2556,6 +2642,13 @@ hs.alert.show("Hammerspoon config loaded (Multiple Projects)")
               )
               .join("");
 
+            const getCheckTargetDesc = (action, targetId) => {
+              if (action === "stop") return "停止";
+              if (action === "continue") return "次へ";
+              if (action === "jump") return getStepLabelById(targetId);
+              return "不明";
+            };
+
             displayContent = `
             <div style="display: flex; flex-direction: column; gap: 6px;">
               <div class="step-key-label-group">
@@ -2600,6 +2693,13 @@ hs.alert.show("Hammerspoon config loaded (Multiple Projects)")
                   }
                 </div>
               </div>
+              <div class="flow-summary-bar">
+                <span>確認</span>
+                <span class="flow-summary-arrow">➔</span>
+                <span>待機 ${normalizeWaitAfter(step.waitAfter, 0.5)}s</span>
+                <span class="flow-summary-arrow">➔</span>
+                <span class="flow-summary-target">OK: ${getCheckTargetDesc(step.ifFoundAction, step.ifFoundTargetId)} / NG: ${getCheckTargetDesc(step.ifNotFoundAction, step.ifNotFoundTargetId)}</span>
+              </div>
             </div>
           `;
             editorContent = `<span class="step-key-label" style="font-size:0.7rem; color:#854d0e; padding-right: 4px;">画面テキスト確認</span>`;
@@ -2611,19 +2711,55 @@ hs.alert.show("Hammerspoon config loaded (Multiple Projects)")
           `;
             editorContent = `<span class="step-key-label" style="font-size:0.7rem; color:#723b13; padding-right: 4px;">待機ステップ</span>`;
           } else if (step.kind === "jump") {
+            const labels = flowSteps.filter(s => s.kind === "label").map(s => s.labelName);
+            const labelOptions = labels
+              .map(
+                name =>
+                  `<option value="${name}" ${step.targetLabel === name ? "selected" : ""}>Label: ${escapeHtml(name)}</option>`,
+              )
+              .join("");
             const stepOptions = flowSteps
               .map(
                 (s, i) =>
                   `<option value="${s.id}" ${step.targetId === s.id ? "selected" : ""}>Step ${i + 1}: ${escapeHtml(s.title || s.kind)}</option>`,
               )
               .join("");
+
+            let targetDesc = "未設定";
+            if (step.targetType === "start") targetDesc = "Step 1 (最初)";
+            else if (step.targetType === "label") targetDesc = step.targetLabel ? `ラベル: ${step.targetLabel}` : "ラベル未選択";
+            else if (step.targetType === "step") targetDesc = getStepLabelById(step.targetId);
+
             displayContent = `
-            <div class="step-key-label-group">
-              <span class="step-key-label" style="min-width: 60px;">ジャンプ先:</span>
-              <select class="step-input" data-field="targetId" data-step-id="${step.id}">
-                <option value="">-- 選択してください --</option>
-                ${stepOptions}
-              </select>
+            <div style="display: flex; flex-direction: column; gap: 6px;">
+              <div class="step-key-label-group" style="flex-wrap: wrap;">
+                <select class="step-input" data-field="targetType" data-step-id="${step.id}" style="width: auto; margin-right: 4px;">
+                  <option value="start" ${step.targetType === "start" ? "selected" : ""}>最初に戻る</option>
+                  <option value="label" ${step.targetType === "label" ? "selected" : ""}>ラベルへ</option>
+                  <option value="step" ${step.targetType === "step" ? "selected" : ""}>ステップ指定</option>
+                </select>
+                
+                ${step.targetType === "label" ? `
+                  <select class="step-input" data-field="targetLabel" data-step-id="${step.id}" style="width: auto;">
+                    <option value="">-- ラベル選択 --</option>
+                    ${labelOptions}
+                  </select>
+                ` : ""}
+                
+                ${step.targetType === "step" ? `
+                  <select class="step-input" data-field="targetId" data-step-id="${step.id}" style="width: auto;">
+                    <option value="">-- ステップ選択 --</option>
+                    ${stepOptions}
+                  </select>
+                ` : ""}
+              </div>
+              <div class="flow-summary-bar">
+                <span>ジャンプ</span>
+                <span class="flow-summary-arrow">➔</span>
+                <span>待機 ${normalizeWaitAfter(step.waitAfter, 0.25)}s</span>
+                <span class="flow-summary-arrow">➔</span>
+                <span class="flow-summary-target">${targetDesc} へ</span>
+              </div>
             </div>
           `;
             editorContent = `<span class="step-key-label" style="font-size:0.7rem; color:#115e59; padding-right: 4px;">無条件遷移</span>`;
@@ -2634,6 +2770,14 @@ hs.alert.show("Hammerspoon config loaded (Multiple Projects)")
             </div>
           `;
             editorContent = `<span class="step-key-label" style="font-size:0.7rem; color:#991b1b; padding-right: 4px;">実行終了点</span>`;
+          } else if (step.kind === "label") {
+            displayContent = `
+            <div class="step-key-label-group">
+              <span class="step-key-label" style="min-width: 60px;">ラベル名:</span>
+              <input type="text" class="step-input" data-field="labelName" data-step-id="${step.id}" value="${escapeHtml(step.labelName || "")}" placeholder="MainLoop など" />
+            </div>
+          `;
+            editorContent = `<span class="step-key-label" style="font-size:0.7rem; color:#5b21b6; padding-right: 4px;">ジャンプ先目印</span>`;
           } else {
             displayContent = `
             <div class="step-key-label-group">
@@ -2663,7 +2807,9 @@ hs.alert.show("Hammerspoon config loaded (Multiple Projects)")
                         ? "JUMP"
                         : step.kind === "stop"
                           ? "STOP"
-                          : "KEY";
+                          : step.kind === "label"
+                            ? "LABEL"
+                            : "KEY";
 
           const kindClass =
             step.kind === "move"
@@ -2682,7 +2828,9 @@ hs.alert.show("Hammerspoon config loaded (Multiple Projects)")
                         ? "jump"
                         : step.kind === "stop"
                           ? "stop"
-                          : "key";
+                          : step.kind === "label"
+                            ? "label"
+                            : "key";
 
           nodes.push(`
           <article class="flow-step${selectedStepId === step.id ? " selected" : ""}" draggable="true" data-step-id="${step.id}">
@@ -3019,6 +3167,9 @@ hs.alert.show("Hammerspoon config loaded (Multiple Projects)")
         .getElementById("btnFlowAddStop")
         .addEventListener("click", () => addStep("stop"));
       document
+        .getElementById("btnFlowAddLabel")
+        .addEventListener("click", () => addStep("label"));
+      document
         .getElementById("btnApplyAllWait")
         .addEventListener("click", applyGlobalWaitTimesToFlow);
       document.querySelectorAll(".btn-apply-individual").forEach((btn) => {
@@ -3262,10 +3413,6 @@ hs.alert.show("Hammerspoon config loaded (Multiple Projects)")
       }
       renderHotkeys();
       refreshFlowViews();
-      build();
-    </script>
-  </body>
-</html>
       build();
     </script>
   </body>
