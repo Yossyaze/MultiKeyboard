@@ -1133,13 +1133,16 @@
 
       /* 空のブランチ用のドロップゾーン */
       .flow-split-empty {
-        border: 2px dashed #cbd5e1;
+        position: relative;
+        z-index: 2;
+        border: 2px dashed #94a3b8;
         border-radius: 8px;
-        background: #f8fafc;
-        color: #94a3b8;
+        background: #ffffff;
+        color: #475569;
         font-size: 0.75rem;
+        font-weight: 600;
         text-align: center;
-        padding: 12px 8px;
+        padding: 16px 8px;
       }
 
       .flow-merge {
@@ -2035,6 +2038,8 @@
           s.appName = (step.appName || "EX Master").trim();
         } else if (s.kind === "check") {
           s.text = (step.text || "アムネディア降臨！！").trim();
+          s.okWaitAfter = normalizeWaitAfter(step.okWaitAfter, 0.5);
+          s.ngWaitAfter = normalizeWaitAfter(step.ngWaitAfter, 0.5);
           // ブランチ方式: OK/NGそれぞれのステップ配列
           s.okBranch = Array.isArray(step.okBranch)
             ? step.okBranch.map((bs) => normalizeStep(bs))
@@ -2367,21 +2372,26 @@ local function createSequence(config)
       end
       return
     elseif bStep.type == "check" then
-      local task = hs.task.new("/usr/bin/shortcuts", function(exitCode, stdOut, stdErr)
-        if not running then return end
         local branch = {}
+        local waitBefore = bStep.okWaitAfter or 0.5
         if exitCode == 0 and stdOut and string.find(stdOut, bStep.text, 1, true) then
           logStep(config.enableTimelineLog, cycleCount, "CHECK_MATCH", bStep.text)
           branch = bStep.okBranch or {}
+          waitBefore = bStep.okWaitAfter or 0.5
         else
           logStep(config.enableTimelineLog, cycleCount, "CHECK_NO_MATCH", bStep.text)
           branch = bStep.ngBranch or {}
+          waitBefore = bStep.ngWaitAfter or 0.5
         end
-        executeBranch(branch, function(jumpIdx)
-          local wait = bStep.waitAfter or 0.25
-          config._timer = hs.timer.doAfter(wait, function()
-            config._timer = nil
-            onDone(jumpIdx)
+        logStep(config.enableTimelineLog, cycleCount, "BRANCH_WAIT_START", string.format("%.2fs", waitBefore))
+        config._timer = hs.timer.doAfter(waitBefore, function()
+          config._timer = nil
+          executeBranch(branch, function(jumpIdx)
+            local waitAfterMerge = bStep.waitAfter or 0.25
+            config._timer = hs.timer.doAfter(waitAfterMerge, function()
+              config._timer = nil
+              onDone(jumpIdx)
+            end)
           end)
         end)
       end, {"run", "GetScreenText"})
@@ -2558,20 +2568,26 @@ local function createSequence(config)
         local task = hs.task.new("/usr/bin/shortcuts", function(exitCode, stdOut, stdErr)
           if not running then return end
           local branch = {}
+          local waitBefore = 0.5
           if exitCode == 0 and stdOut and string.find(stdOut, step.text, 1, true) then
             logStep(config.enableTimelineLog, cycleCount, "CHECK_MATCH", step.text)
             branch = step.okBranch or {}
+            waitBefore = step.okWaitAfter or 0.5
           else
             logStep(config.enableTimelineLog, cycleCount, "CHECK_NO_MATCH", step.text)
             branch = step.ngBranch or {}
+            waitBefore = step.ngWaitAfter or 0.5
           end
-          executeBranch(branch, function(jumpIdx)
-            if jumpIdx then
-              -- ブランチ内JUMPからメインフローへ
-              continueAfterAction(jumpIdx)
-            else
-              continueAfterAction()
-            end
+          logStep(config.enableTimelineLog, cycleCount, "BRANCH_WAIT_START", string.format("%.2fs", waitBefore))
+          config._timer = hs.timer.doAfter(waitBefore, function()
+            config._timer = nil
+            executeBranch(branch, function(jumpIdx)
+              if jumpIdx then
+                continueAfterAction(jumpIdx)
+              else
+                continueAfterAction()
+              end
+            end)
           end)
         end, {"run", "GetScreenText"})
         task:start()
@@ -2770,7 +2786,7 @@ local all_sequences = {}
                       else if (ns.kind === "focus")
                         fld += `, appName = "${luaString(ns.appName)}"`;
                       else if (ns.kind === "check")
-                        fld += `, text = "${luaString(ns.text)}", okBranch = ${branchToLua(ns.okBranch)}, ngBranch = ${branchToLua(ns.ngBranch)}`;
+                        fld += `, text = "${luaString(ns.text)}", okBranch = ${branchToLua(ns.okBranch)}, ngBranch = ${branchToLua(ns.ngBranch)}, okWaitAfter = ${normalizeWaitAfter(ns.okWaitAfter, 0.5).toFixed(2)}, ngWaitAfter = ${normalizeWaitAfter(ns.ngWaitAfter, 0.5).toFixed(2)}`;
                       else if (ns.kind === "jump") {
                         const tl =
                           ns.targetType === "start"
@@ -2786,7 +2802,7 @@ local all_sequences = {}
                     });
                     return "{ " + items.join(", ") + " }";
                   };
-                  return `    { id = ${step.id}, type = "check", label = "${luaString(step.title)}", text = "${luaString(step.text)}", okBranch = ${branchToLua(step.okBranch)}, ngBranch = ${branchToLua(step.ngBranch)}, waitAfter = ${normalizeWaitAfter(step.waitAfter, 0.5).toFixed(2)} },`;
+                  return `    { id = ${step.id}, type = "check", label = "${luaString(step.title)}", text = "${luaString(step.text)}", okBranch = ${branchToLua(step.okBranch)}, ngBranch = ${branchToLua(step.ngBranch)}, okWaitAfter = ${normalizeWaitAfter(step.okWaitAfter, 0.5).toFixed(2)}, ngWaitAfter = ${normalizeWaitAfter(step.ngWaitAfter, 0.5).toFixed(2)}, waitAfter = ${normalizeWaitAfter(step.waitAfter, 0.5).toFixed(2)} },`;
                 }
                 if (step.kind === "label") {
                   return `    { id = ${step.id}, type = "label", label = "${luaString(step.title)}", labelName = "${luaString(step.labelName)}", waitAfter = 0 },`;
@@ -2931,6 +2947,8 @@ hs.alert.show("Hammerspoon config loaded (Multiple Projects)")
           step.text = "アムネディア降臨！！";
           step.okBranch = [];
           step.ngBranch = [];
+          step.okWaitAfter = 0.5;
+          step.ngWaitAfter = 0.5;
           step.waitAfter = 0.5;
         } else if (kind === "key") {
           step.key = ""; // 記録を促すため空に
@@ -3127,6 +3145,8 @@ hs.alert.show("Hammerspoon config loaded (Multiple Projects)")
           step.moveHotkey = value || "ipadMove";
         } else if (
           field === "waitAfter" ||
+          field === "okWaitAfter" ||
+          field === "ngWaitAfter" ||
           field === "x" ||
           field === "y" ||
           field === "settleBefore" ||
@@ -3608,10 +3628,41 @@ hs.alert.show("Hammerspoon config loaded (Multiple Projects)")
               else if (okEnds) mergeClass = " ok-ends";
               else if (ngEnds) mergeClass = " ng-ends";
 
+              const okConnector = `
+                <div class="flow-connector">
+                  <div class="flow-connector-line"></div>
+                  <div class="flow-connector-pill">
+                    <span class="flow-connector-dot"></span>
+                    待機
+                    <input data-field="okWaitAfter" data-step-id="${step.id}" type="number" min="0" step="0.05" value="${normalizeWaitAfter(step.okWaitAfter, 0.5).toFixed(2)}" />
+                    s
+                  </div>
+                </div>
+              `;
+              const ngConnector = `
+                <div class="flow-connector">
+                  <div class="flow-connector-line"></div>
+                  <div class="flow-connector-pill">
+                    <span class="flow-connector-dot"></span>
+                    待機
+                    <input data-field="ngWaitAfter" data-step-id="${step.id}" type="number" min="0" step="0.05" value="${normalizeWaitAfter(step.ngWaitAfter, 0.5).toFixed(2)}" />
+                    s
+                  </div>
+                </div>
+              `;
+
               nodes.push(`
                 <div class="flow-split" data-parent-check-id="${step.id}">
-                  <div class="flow-split-col ok${selectedBranch && selectedBranch.checkId === step.id && selectedBranch.branchType === "ok" ? " selected" : ""}" data-branch-type="ok" data-parent-id="${step.id}"><div class="flow-split-header">✅ OK (見つかった時)</div>${okHtml || `<div class="flow-split-empty">ここにドロップ</div><div class="flow-branch-end-connector"><div class="flow-branch-end-connector-line"></div></div>`}</div>
-                  <div class="flow-split-col ng${selectedBranch && selectedBranch.checkId === step.id && selectedBranch.branchType === "ng" ? " selected" : ""}" data-branch-type="ng" data-parent-id="${step.id}"><div class="flow-split-header">❌ NG (見つからない時)</div>${ngHtml || `<div class="flow-split-empty">ここにドロップ</div><div class="flow-branch-end-connector"><div class="flow-branch-end-connector-line"></div></div>`}</div>
+                  <div class="flow-split-col ok${selectedBranch && selectedBranch.checkId === step.id && selectedBranch.branchType === "ok" ? " selected" : ""}" data-branch-type="ok" data-parent-id="${step.id}">
+                    <div class="flow-split-header">✅ OK (見つかった時)</div>
+                    ${okConnector}
+                    ${okHtml || `<div class="flow-split-empty">ここにドロップ</div><div class="flow-branch-end-connector"><div class="flow-branch-end-connector-line"></div></div>`}
+                  </div>
+                  <div class="flow-split-col ng${selectedBranch && selectedBranch.checkId === step.id && selectedBranch.branchType === "ng" ? " selected" : ""}" data-branch-type="ng" data-parent-id="${step.id}">
+                    <div class="flow-split-header">❌ NG (見つからない時)</div>
+                    ${ngConnector}
+                    ${ngHtml || `<div class="flow-split-empty">ここにドロップ</div><div class="flow-branch-end-connector"><div class="flow-branch-end-connector-line"></div></div>`}
+                  </div>
                 </div>
                 <div class="flow-merge${mergeClass}">
                   <span class="flow-merge-pill">↓ メインフローに合流</span>
