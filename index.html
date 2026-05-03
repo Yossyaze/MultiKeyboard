@@ -3398,7 +3398,7 @@ hs.alert.show("Hammerspoon config loaded (Multiple Projects)")
 
         let globalStepIndex = 1;
 
-        function renderFlowSteps(steps, isTopLevel = false) {
+        function renderFlowSteps(steps, isTopLevel = false, branchWaitInfo = null) {
           const nodes = [];
 
           steps.forEach((raw, index) => {
@@ -3652,8 +3652,16 @@ hs.alert.show("Hammerspoon config loaded (Multiple Projects)")
 
             // CHECKステップの場合、カードの直下に分岐コンテナ（OK/NGカラム）を描画する
             if (step.kind === "check") {
-              const okHtml = renderFlowSteps(step.okBranch || [], false);
-              const ngHtml = renderFlowSteps(step.ngBranch || [], false);
+              const okHtml = renderFlowSteps(step.okBranch || [], false, {
+                value: step.okWaitAfter,
+                parentStepId: step.id,
+                field: "okWaitAfter",
+              });
+              const ngHtml = renderFlowSteps(step.ngBranch || [], false, {
+                value: step.ngWaitAfter,
+                parentStepId: step.id,
+                field: "ngWaitAfter",
+              });
 
               const okEnds =
                 step.okBranch &&
@@ -3722,14 +3730,18 @@ hs.alert.show("Hammerspoon config loaded (Multiple Projects)")
                     <div class="flow-split-col ok${selectedBranch && selectedBranch.checkId === step.id && selectedBranch.branchType === "ok" ? " selected" : ""}" data-branch-type="ok" data-parent-id="${step.id}">
                       <div class="flow-split-header">✅ OK (見つかった時)</div>
                       ${okBeforeConnector}
-                      ${okHtml || `<div class="flow-split-empty">ここにドロップ</div>`}
-                      ${okAfterConnector}
+                      ${
+                        okHtml ||
+                        `<div class="flow-split-empty">ここにドロップ</div>${okAfterConnector}`
+                      }
                     </div>
                     <div class="flow-split-col ng${selectedBranch && selectedBranch.checkId === step.id && selectedBranch.branchType === "ng" ? " selected" : ""}" data-branch-type="ng" data-parent-id="${step.id}">
                       <div class="flow-split-header">❌ NG (見つからない時)</div>
                       ${ngBeforeConnector}
-                      ${ngHtml || `<div class="flow-split-empty">ここにドロップ</div>`}
-                      ${ngAfterConnector}
+                      ${
+                        ngHtml ||
+                        `<div class="flow-split-empty">ここにドロップ</div>${ngAfterConnector}`
+                      }
                     </div>
                   </div>
                   <div class="flow-merge${mergeClass}" data-rendered-from="merge">
@@ -3747,7 +3759,6 @@ hs.alert.show("Hammerspoon config loaded (Multiple Projects)")
                 step.kind !== "stop" &&
                 step.kind !== "jump"
               ) {
-                // ループ用コネクタはここで追加（末尾）
                 nodes.push(`
                 <div class="flow-connector flow-loop-connector" data-rendered-from="loop">
                   <div class="flow-connector-pill flow-loop-pill">
@@ -3757,8 +3768,32 @@ hs.alert.show("Hammerspoon config loaded (Multiple Projects)")
                 </div>
               `);
               }
-            } else if (step.kind !== "stop" && step.kind !== "jump" && step.kind !== "check") {
-              // 待機コネクタ
+
+              // ブランチの末尾かつ、STOP/JUMPでない場合にブランチ待機を表示
+              if (!isTopLevel && branchWaitInfo) {
+                if (step.kind !== "stop" && step.kind !== "jump") {
+                  const waitSeconds = normalizeWaitAfter(
+                    branchWaitInfo.value,
+                    0.5,
+                  );
+                  nodes.push(`
+                  <div class="flow-connector is-branch">
+                    <div class="flow-connector-pill">
+                      <span class="flow-connector-dot"></span>
+                      待機
+                      <input data-field="${branchWaitInfo.field}" data-step-id="${branchWaitInfo.parentStepId}" type="number" min="0" step="0.05" value="${waitSeconds.toFixed(2)}" />
+                      s
+                    </div>
+                  </div>
+                `);
+                }
+              }
+            } else if (
+              step.kind !== "stop" &&
+              step.kind !== "jump" &&
+              step.kind !== "check"
+            ) {
+              // 待機コネクタ（メインフローまたはブランチ内のステップ間）
               const waitSeconds = normalizeWaitAfter(
                 step.waitAfter,
                 defaultWaitSecondsForIndex(index),
