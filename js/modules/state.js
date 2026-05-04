@@ -159,6 +159,9 @@ export function normalizeStep(step) {
     s.kind = "key";
     s.key = (step.key || "space").trim().toLowerCase() || "space";
   }
-  s.waitAfter = normalizeWaitAfter(step.waitAfter, 0.25);
+  
+  // CHECKステップの場合は合流後の待機をデフォルト0にする
+  const defaultWait = s.kind === "check" ? 0 : 0.25;
+  s.waitAfter = normalizeWaitAfter(step.waitAfter, defaultWait);
   return s;
 }

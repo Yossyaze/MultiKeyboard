@@ -292,7 +292,7 @@ function renderFlowStepsRecursive(steps, isTopLevel = false, branchWaitInfo = nu
           <div class="flow-connector-pill">
             <span class="flow-connector-dot"></span>
             待機
-            <input data-field="okWaitBefore" data-step-id="${step.id}" type="number" min="0" step="0.05" value="${(step.okWaitBefore || 0.5).toFixed(2)}" />
+            <input data-field="okWaitBefore" data-step-id="${step.id}" type="number" min="0" step="0.05" value="${(step.okWaitBefore ?? 0.5).toFixed(2)}" />
             s
           </div>
         </div>
@@ -302,7 +302,7 @@ function renderFlowStepsRecursive(steps, isTopLevel = false, branchWaitInfo = nu
           <div class="flow-connector-pill">
             <span class="flow-connector-dot"></span>
             待機
-            <input data-field="ngWaitBefore" data-step-id="${step.id}" type="number" min="0" step="0.05" value="${(step.ngWaitBefore || 0.5).toFixed(2)}" />
+            <input data-field="ngWaitBefore" data-step-id="${step.id}" type="number" min="0" step="0.05" value="${(step.ngWaitBefore ?? 0.5).toFixed(2)}" />
             s
           </div>
         </div>
@@ -336,7 +336,7 @@ function renderFlowStepsRecursive(steps, isTopLevel = false, branchWaitInfo = nu
       // No connector
     } else if (!hasNext) {
       if (isTopLevel && txt("enableLoop", "true") === "true") {
-        const waitSeconds = step.waitAfter || defaultWaitSecondsForIndex(index);
+        const waitSeconds = step.waitAfter ?? defaultWaitSecondsForIndex(index);
         nodes.push(`
           <div class="flow-connector">
             <div class="flow-connector-pill">
@@ -354,8 +354,8 @@ function renderFlowStepsRecursive(steps, isTopLevel = false, branchWaitInfo = nu
           </div>
         `);
       }
-    } else {
-      const waitSeconds = step.waitAfter || defaultWaitSecondsForIndex(index);
+    } else if (step.kind !== "check") {
+      const waitSeconds = step.waitAfter ?? defaultWaitSecondsForIndex(index);
       nodes.push(`
         <div class="flow-connector">
           <div class="flow-connector-pill">
@@ -368,13 +368,13 @@ function renderFlowStepsRecursive(steps, isTopLevel = false, branchWaitInfo = nu
       `);
     }
 
-    if (branchWaitInfo && !hasNext) {
+    if (branchWaitInfo && !hasNext && !isStopStep && step.kind !== "jump") {
       nodes.push(`
         <div class="flow-connector is-branch">
           <div class="flow-connector-pill">
             <span class="flow-connector-dot"></span>
-            合流前待機
-            <input data-field="${branchWaitInfo.field}" data-step-id="${branchWaitInfo.parentStepId}" type="number" min="0" step="0.05" value="${(branchWaitInfo.value || 0.5).toFixed(2)}" />
+            待機
+            <input data-field="${branchWaitInfo.field}" data-step-id="${branchWaitInfo.parentStepId}" type="number" min="0" step="0.05" value="${(branchWaitInfo.value ?? 0.5).toFixed(2)}" />
             s
           </div>
         </div>

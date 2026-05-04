@@ -332,7 +332,7 @@ local allSequences = {}
         sLua += `      id = ${s.id},\n`;
         sLua += `      type = "${s.kind}",\n`;
         sLua += `      label = "${luaString(s.title)}",\n`;
-        sLua += `      waitAfter = ${s.waitAfter || 0.25},\n`;
+        sLua += `      waitAfter = ${s.waitAfter ?? 0.25},\n`;
         if (s.kind === "move") {
           const hk = hotkeys[s.moveHotkey] || { key: "a", mods: ["ctrl", "shift"] };
           sLua += `      key = "${luaString(hk.key)}",\n`;
@@ -348,10 +348,10 @@ local allSequences = {}
           sLua += `      appName = "${luaString(s.appName)}",\n`;
         } else if (s.kind === "check") {
           sLua += `      text = "${luaString(s.text)}",\n`;
-          sLua += `      okWaitBefore = ${s.okWaitBefore || 0.5},\n`;
-          sLua += `      okWaitAfter = ${s.okWaitAfter || 0.5},\n`;
-          sLua += `      ngWaitBefore = ${s.ngWaitBefore || 0.5},\n`;
-          sLua += `      ngWaitAfter = ${s.ngWaitAfter || 0.5},\n`;
+          sLua += `      okWaitBefore = ${s.okWaitBefore ?? 0.5},\n`;
+          sLua += `      okWaitAfter = ${s.okWaitAfter ?? 0.5},\n`;
+          sLua += `      ngWaitBefore = ${s.ngWaitBefore ?? 0.5},\n`;
+          sLua += `      ngWaitAfter = ${s.ngWaitAfter ?? 0.5},\n`;
           sLua += `      okBranch = {\n${walkSteps(s.okBranch || [])}      },\n`;
           sLua += `      ngBranch = {\n${walkSteps(s.ngBranch || [])}      },\n`;
         } else if (s.kind === "jump") {
