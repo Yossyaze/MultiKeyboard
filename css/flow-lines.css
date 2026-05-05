@@ -94,16 +94,34 @@
   left: 50%;
 }
 
-/* 分岐（CHECK）の横線 */
-.flow-split-col.ng::after {
+/* 分岐（CHECK）のサイド分岐ライン: カード中央から右へ */
+.flow-check-card::after {
   content: "";
+  display: block;
   position: absolute;
-  top: -44px;
-  right: calc(50% - 1px);
-  width: calc(100% + var(--flow-branch-gap) + 2px);
+  top: 50%;
+  left: 50%;
+  width: calc(100% + var(--flow-branch-gap));
   height: 2px;
   background: var(--line);
-  z-index: -1; /* 全ての線は一貫して最背面へ */
+  z-index: -1;
+  transform: translateY(-50%);
+  pointer-events: none;
+}
+
+/* 分岐（CHECK）の垂直ドロップライン: 横線の先端から下へ */
+.flow-check-card::before {
+  content: "";
+  display: block;
+  position: absolute;
+  top: 50%;
+  left: calc(150% + var(--flow-branch-gap));
+  width: 2px;
+  bottom: -60px; /* NGカラムに届くのに十分な長さ（重なりは無視される） */
+  background: var(--line);
+  z-index: -1;
+  transform: translateX(-50%);
+  pointer-events: none;
 }
 
 /* 合流（MERGE）の横線 */
@@ -127,6 +145,29 @@
 /* セグメント方式による接続線の描画 */
 .flow-step::before,
 .flow-connector::before,
-.flow-loop-connector::before {
+.flow-loop-connector::before,
+.flow-branch-filler::before,
+.flow-check-card::before,
+.flow-check-card::after {
   display: block;
+}
+
+/* 分岐の長さを揃えて合流線に繋ぐためのフィラー */
+.flow-branch-filler {
+  flex-grow: 1;
+  position: relative;
+  min-height: 20px;
+}
+
+.flow-branch-filler::before {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  background: var(--line);
+  z-index: -1;
+  transform: translateX(-50%);
+  pointer-events: none;
 }

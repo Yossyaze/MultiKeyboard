@@ -318,11 +318,13 @@ function renderFlowStepsRecursive(steps, isTopLevel = false, branchWaitInfo = nu
               <div class="flow-split-header">✅ OK (見つかった時)</div>
               ${okBeforeConnector}
               ${okHtml || `<div class="flow-split-empty">ここにドロップ</div>`}
+              ${okEndsStop ? "" : `<div class="flow-branch-filler"></div>`}
             </div>
             <div class="flow-split-col ng${state.selectedBranch && state.selectedBranch.checkId === step.id && state.selectedBranch.branchType === "ng" ? " selected" : ""}${ngEndsStop ? " ends-stop" : ""}" data-branch-type="ng" data-parent-id="${step.id}">
               <div class="flow-split-header">❌ NG (見つからない時)</div>
               ${ngBeforeConnector}
               ${ngHtml || `<div class="flow-split-empty">ここにドロップ</div>`}
+              ${ngEndsStop ? "" : `<div class="flow-branch-filler"></div>`}
             </div>
           </div>
           <div class="flow-merge${mergeClass}" data-rendered-from="merge">
