@@ -49,7 +49,9 @@
 .flow-step::before,
 .flow-connector::before,
 .flow-loop-connector::before,
+.flow-end-connector::before,
 .flow-split-header::before,
+.flow-split-empty::before,
 .flow-jump-label::before {
   content: "";
   position: absolute;
@@ -95,7 +97,8 @@
 }
 
 /* OK/NGラベル: 上から下（次の要素との隙間）まで貫通 */
-.flow-split-header::before {
+.flow-split-header::before,
+.flow-split-empty::before {
   top: 0;
   bottom: -33px;
 }
@@ -171,6 +174,12 @@
   pointer-events: none;
 }
 
+/* 実行終了コネクタ: 上から中央（ピル）まで */
+.flow-end-connector::before {
+  top: 0;
+  bottom: 50%;
+}
+
 /* 条件付き表示 */
 .flow-merge.ok-ends::before { display: block; }
 .flow-merge.ng-ends::before { display: none; }
@@ -185,12 +194,14 @@
 .flow-step::before,
 .flow-connector::before,
 .flow-loop-connector::before,
+.flow-end-connector::before,
 .flow-branch-filler::before,
 .flow-check-card::before,
 .flow-check-card::after,
 .flow-merge::before,
 .flow-merge::after,
 .flow-split-header::before,
+.flow-split-empty::before,
 .flow-jump-label::before {
   display: block;
 }

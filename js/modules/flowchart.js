@@ -95,17 +95,28 @@ export async function updateMermaidGraph() {
           lines.push(`  ${nodeId} --> ${nextInSameLevel}`);
         } else if (isLast) {
           if (nextNodeIdAfterBranch) {
-            // ブランチの最後なら、呼び出し元で指定された合流先へ
-            lines.push(`  ${nodeId} --> ${nextNodeIdAfterBranch}`);
-          } else if (txt("enableLoop", "true") === "true") {
-            // メインフローの最後ならループ
-            lines.push(`  ${nodeId} -.-> s${normalizeStep(state.flowSteps[0]).id}`);
+            // 合流先へ接続（ループバックを含む）
+            if (nextNodeIdAfterBranch.startsWith("s") && nextNodeIdAfterBranch === `s${state.flowSteps[0].id}`) {
+              lines.push(`  ${nodeId} -.-> ${nextNodeIdAfterBranch}`);
+            } else {
+              lines.push(`  ${nodeId} --> ${nextNodeIdAfterBranch}`);
+            }
           }
         }
       }
     });
   };
-  generateConnections(state.flowSteps);
+
+  const isLoopEnabled = document.getElementById("enableLoop")?.checked;
+  const firstNodeId = `s${state.flowSteps[0].id}`;
+  const endNodeId = "endNode";
+
+  if (!isLoopEnabled) {
+    lines.push(`  ${endNodeId}(("実行終了"))`);
+    lines.push(`  style ${endNodeId} fill:#fef2f2,stroke:#fecaca,color:#991b1b`);
+  }
+
+  generateConnections(state.flowSteps, isLoopEnabled ? firstNodeId : endNodeId);
 
   const graphCode = lines.join("\n");
   const oldSvg = document.getElementById("mermaid-graph-svg");

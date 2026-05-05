@@ -1,4 +1,4 @@
-import { hotkeys } from './constants.js';
+
 
 export const state = {
   projects: {},
@@ -47,10 +47,8 @@ export function findStepById(stepId, steps) {
 export function flushActiveProject() {
   if (!state.activeProjectId || !state.projects[state.activeProjectId]) return;
   const p = state.projects[state.activeProjectId];
-  p.hotkeys = {
-    start: hotkeys.start,
-    stop: hotkeys.stop,
-  };
+  // p.hotkeys は各プロジェクトで独立して保持されるため、ここでは上書きしない
+
   p.flowSteps = [...state.flowSteps];
   p.stepIdSeq = state.stepIdSeq;
   p.templateStepIds = { ...state.templateStepIds };

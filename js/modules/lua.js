@@ -261,15 +261,11 @@ local function createSequence(config)
               logStep(config.enableTimelineLog, cycleCount, "BRANCH_WAIT_END", string.format("%.2fs", waitAfter))
               config._timer = hs.timer.doAfter(waitAfter, function()
                 config._timer = nil
-                local waitTotalAfter = s.waitAfter or 0.25
-                config._timer = hs.timer.doAfter(waitTotalAfter, function()
-                  config._timer = nil
-                  if jumpIdx then
-                    runStep(jumpIdx)
-                  else
-                    runStep(index + 1)
-                  end
-                end)
+                if jumpIdx then
+                  runStep(jumpIdx)
+                else
+                  runStep(index + 1)
+                end
               end)
             end)
           end)
@@ -334,7 +330,8 @@ local allSequences = {}
         sLua += `      label = "${luaString(s.title)}",\n`;
         sLua += `      waitAfter = ${s.waitAfter ?? 0.25},\n`;
         if (s.kind === "move") {
-          const hk = hotkeys[s.moveHotkey] || { key: "a", mods: ["ctrl", "shift"] };
+          const hk = state.globalSettings[s.moveHotkey] || hotkeys[s.moveHotkey] || { key: "a", mods: ["ctrl", "shift"] };
+
           sLua += `      key = "${luaString(hk.key)}",\n`;
           sLua += `      mods = ${modsToLua(hk.mods)},\n`;
         } else if (s.kind === "key") {

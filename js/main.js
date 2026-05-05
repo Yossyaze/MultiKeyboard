@@ -1,5 +1,6 @@
 import { state, nextStepId, findStepById, flushActiveProject, normalizeStep, defaultTitleByKind } from './modules/state.js';
-import { hotkeys, hotkeyLabels, NEW_STORAGE_KEY } from './modules/constants.js';
+import { hotkeyLabels, NEW_STORAGE_KEY } from './modules/constants.js';
+
 import { num, txt, escapeHtml } from './modules/utils.js';
 import { saveToStorage, loadFromStorage } from './modules/storage.js';
 import { generateLua } from './modules/lua.js';
@@ -14,6 +15,75 @@ import {
   setupAddStepButtons
 } from './modules/ui.js';
 import { updateMermaidGraph } from './modules/flowchart.js';
+import { HistoryManager } from './modules/history.js';
+
+const history = new HistoryManager();
+
+function saveHistory() {
+  flushActiveProject();
+  history.push(state);
+  updateUndoRedoButtons();
+}
+
+function updateUndoRedoButtons() {
+  const undoBtn = document.getElementById("btnUndo");
+  const redoBtn = document.getElementById("btnRedo");
+  if (undoBtn) undoBtn.disabled = !history.canUndo();
+  if (redoBtn) redoBtn.disabled = !history.canRedo();
+}
+
+window.undo = function() {
+  flushActiveProject();
+  const prevState = history.undo(state);
+  if (prevState) {
+    applyState(prevState);
+    setStatus("元に戻しました (Undo)");
+  }
+};
+
+window.redo = function() {
+  flushActiveProject();
+  const nextState = history.redo(state);
+  if (nextState) {
+    applyState(nextState);
+    setStatus("やり直しました (Redo)");
+  }
+};
+
+function applyState(newState) {
+  // state オブジェクトのプロパティを更新
+  Object.keys(newState).forEach(key => {
+    state[key] = newState[key];
+  });
+  
+  // アクティブなプロジェクトがある場合、グローバルなホットキー設定等も同期
+  if (state.activeProjectId && state.projects[state.activeProjectId]) {
+    const p = state.projects[state.activeProjectId];
+    // プロジェクト切り替え時に共有オブジェクト hotkeys を上書きしないように変更
+
+    
+    // UIコンポーネント（input/checkbox）の値も同期
+    if (p.config) {
+      const fields = ["settleIPad", "waitIPad", "settleIPhone", "waitIPhone", "enableTimelineLog", "enableLoop"];
+      fields.forEach(f => {
+        const el = document.getElementById(f);
+        if (el) {
+          if (el.type === "checkbox") {
+            el.checked = p.config[f] === "true";
+          } else {
+            el.value = p.config[f] || (f.startsWith("enable") ? "true" : "0.5");
+          }
+        }
+      });
+    }
+  }
+  
+  updateProjectTabs();
+  renderHotkeys();
+  refreshFlowViews();
+  updateUndoRedoButtons();
+}
+
 
 // --- Global Functions (needed for inline HTML event handlers or external access) ---
 
@@ -28,10 +98,8 @@ window.loadProjectState = function(projectId) {
   state.stepIdSeq = p.stepIdSeq || 1;
   state.templateStepIds = p.templateStepIds || {};
   
-  if (p.hotkeys) {
-    if (p.hotkeys.start) hotkeys.start = p.hotkeys.start;
-    if (p.hotkeys.stop) hotkeys.stop = p.hotkeys.stop;
-  }
+  // プロジェクト切り替え時に共有オブジェクト hotkeys を上書きしないように変更
+
   
   if (p.config) {
     const fields = ["settleIPad", "waitIPad", "settleIPhone", "waitIPhone", "enableTimelineLog", "enableLoop"];
@@ -140,6 +208,7 @@ window.renameProject = function(projectId) {
   if (!p) return;
   const name = prompt("名前を変更", p.name);
   if (name) {
+    saveHistory();
     p.name = name;
     updateProjectTabs();
     saveToStorage();
@@ -153,6 +222,7 @@ window.deleteProject = function(projectId) {
   }
   const p = state.projects[projectId];
   if (confirm(`プロジェクト「${p.name}」を削除しますか？`)) {
+    saveHistory();
     delete state.projects[projectId];
     state.projectOrder = state.projectOrder.filter(id => id !== projectId);
     if (state.activeProjectId === projectId) {
@@ -169,6 +239,7 @@ window.reorderProjects = function(draggedId, targetId) {
   const newIndex = state.projectOrder.indexOf(targetId);
   if (oldIndex === -1 || newIndex === -1) return;
   
+  saveHistory();
   state.projectOrder.splice(oldIndex, 1);
   state.projectOrder.splice(newIndex, 0, draggedId);
   
@@ -177,6 +248,7 @@ window.reorderProjects = function(draggedId, targetId) {
 };
 
 function addStep(kind, moveHotkey = "ipadMove") {
+  saveHistory();
   const step = normalizeStep({
     id: nextStepId(),
     kind,
@@ -224,6 +296,7 @@ function findStepArrayAndIndex(stepId, steps) {
 }
 
 function updateStepField(stepId, field, value) {
+  saveHistory();
   const step = findStepById(stepId);
   if (!step) return;
   if (["waitAfter", "x", "y", "settleBefore", "okWaitBefore", "ngWaitBefore", "okWaitAfter", "ngWaitAfter"].includes(field)) {
@@ -251,11 +324,25 @@ function captureHotkey(e) {
   if (e.metaKey) mods.push("cmd");
 
   if (state.recordingTarget) {
-    state.globalSettings[state.recordingTarget] = { key, mods };
-    hotkeys[state.recordingTarget] = { key, mods };
+    saveHistory();
+    const target = state.recordingTarget;
+    const hkValue = { key, mods };
+    
+    if (target === "start" || target === "stop") {
+      const p = state.projects[state.activeProjectId];
+      if (p) {
+        if (!p.hotkeys) p.hotkeys = {};
+        p.hotkeys[target] = hkValue;
+      }
+    } else {
+      state.globalSettings[target] = hkValue;
+    }
+    
     state.recordingTarget = null;
     renderHotkeys();
   } else if (state.recordingStepId) {
+
+    saveHistory();
     const step = findStepById(state.recordingStepId);
     if (step) step.key = key;
     state.recordingStepId = null;
@@ -330,6 +417,7 @@ document.addEventListener("DOMContentLoaded", () => {
     // 表示順序リストにも追加
     state.projectOrder.push(newId);
     
+    saveHistory();
     window.loadProjectState(newId);
     saveToStorage();
   };
@@ -350,6 +438,7 @@ document.addEventListener("DOMContentLoaded", () => {
   document.getElementById("btnApplyAllWait").onclick = () => {
     if (!confirm("現在の全ステップの待機時間を、上記の設定値で一斉に上書きしますか？")) return;
 
+    saveHistory();
     state.flowSteps.forEach((step, index) => {
       if (step.kind === "move") {
         step.waitAfter = step.moveHotkey === "ipadMove" ? num("settleIPad", 0.3) : num("settleIPhone", 0.4);
@@ -385,9 +474,14 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   };
 
+  // Undo/Redo button listeners
+  document.getElementById("btnUndo").onclick = () => window.undo();
+  document.getElementById("btnRedo").onclick = () => window.redo();
+
   document.getElementById("flowTrack").onclick = (e) => {
     const t = e.target;
     if (t.dataset.action === "delete") {
+      saveHistory();
       const id = Number(t.dataset.stepId);
       const loc = findStepArrayAndIndex(id, state.flowSteps);
       if (loc) {
@@ -429,15 +523,20 @@ document.addEventListener("DOMContentLoaded", () => {
       state.selectedStepId = null;
       state.selectedBranch = null;
       refreshFlowViews();
-    } else if (e.target.closest(".flow-split-header")) {
+    } else if (e.target.closest(".flow-split-header") || e.target.closest(".flow-split-empty")) {
+      const target = e.target.closest(".flow-split-header") || e.target.closest(".flow-split-empty");
       const col = e.target.closest(".flow-split-col");
       const checkId = Number(col.dataset.parentId);
       const type = col.dataset.branchType;
+      const isHeader = target.classList.contains("flow-split-header");
+      const selectionType = isHeader ? "header" : "empty";
+
       state.selectedBranch =
         state.selectedBranch?.checkId === checkId &&
-        state.selectedBranch?.branchType === type
+        state.selectedBranch?.branchType === type &&
+        state.selectedBranch?.selectionType === selectionType
           ? null
-          : { checkId, branchType: type };
+          : { checkId, branchType: type, selectionType };
       state.selectedStepId = null;
       state.selectedMergeId = null;
       refreshFlowViews();
@@ -453,12 +552,30 @@ document.addEventListener("DOMContentLoaded", () => {
 
   window.addEventListener("keydown", captureHotkey, true);
   
+  // Shortcuts
+  window.addEventListener("keydown", (e) => {
+    const isMod = e.metaKey || e.ctrlKey;
+    if (isMod && e.key.toLowerCase() === "z") {
+      e.preventDefault();
+      if (e.shiftKey) {
+        window.redo();
+      } else {
+        window.undo();
+      }
+    }
+  });
+
   // Backspace to delete
   window.addEventListener("keydown", (e) => {
     if ((e.key === "Backspace" || e.key === "Delete") && !["INPUT", "TEXTAREA", "SELECT"].includes(document.activeElement.tagName)) {
       if (state.selectedStepId) {
         const loc = findStepArrayAndIndex(state.selectedStepId, state.flowSteps);
-        if (loc) { loc.array.splice(loc.index, 1); state.selectedStepId = null; refreshFlowViews(); }
+        if (loc) { 
+          saveHistory();
+          loc.array.splice(loc.index, 1); 
+          state.selectedStepId = null; 
+          refreshFlowViews(); 
+        }
       }
     }
   });
@@ -474,10 +591,24 @@ document.addEventListener("DOMContentLoaded", () => {
 
   document.querySelectorAll(".clear-btn[data-hotkey]").forEach(btn => {
     btn.onclick = () => {
-      hotkeys[btn.dataset.hotkey] = { key: "", mods: [] };
+      saveHistory();
+      const target = btn.dataset.hotkey;
+      const emptyHk = { key: "", mods: [] };
+      
+      if (target === "start" || target === "stop") {
+        const p = state.projects[state.activeProjectId];
+        if (p) {
+          if (!p.hotkeys) p.hotkeys = {};
+          p.hotkeys[target] = emptyHk;
+        }
+      } else {
+        state.globalSettings[target] = emptyHk;
+      }
+      
       renderHotkeys();
       saveToStorage();
     };
+
   });
 
   // 設定変更時の自動更新リスナー
@@ -485,6 +616,7 @@ document.addEventListener("DOMContentLoaded", () => {
     const el = document.getElementById(id);
     if (el) {
       el.onchange = () => {
+        saveHistory();
         refreshFlowViews();
       };
     }

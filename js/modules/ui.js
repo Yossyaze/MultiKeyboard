@@ -369,20 +369,28 @@ function renderFlowStepsRecursive(
           </div>
           <div class="flow-split" data-parent-check-id="${step.id}">
             <div class="flow-split-col ok${okSelected ? " selected" : ""}${okEndsStop ? " ends-stop" : ""}" data-branch-type="ok" data-parent-id="${step.id}">
-              <div class="flow-split-header${okSelected ? " selected" : ""}">✅ OK (見つかった時)</div>
+              <div class="flow-split-header${okSelected && state.selectedBranch.selectionType === "header" ? " selected" : ""}">✅ OK (見つかった時)</div>
               ${okBeforeConnector}
-              ${okHtml || `<div class="flow-split-empty">ここにドロップ</div>`}
+              ${okHtml || `<div class="flow-split-empty${okSelected && state.selectedBranch.selectionType === "empty" ? " selected" : ""}" data-branch-type="ok" data-parent-id="${step.id}">
+                <span class="flow-merge-indicator">↓</span>
+                <span class="empty-label">何もしないで合流</span>
+                <div class="empty-hint">クリックしてアクションを追加</div>
+              </div>`}
               ${okEndsStop ? "" : `<div class="flow-branch-filler"></div>`}
             </div>
             <div class="flow-split-col ng${ngSelected ? " selected" : ""}${ngEndsStop ? " ends-stop" : ""}" data-branch-type="ng" data-parent-id="${step.id}">
-              <div class="flow-split-header${ngSelected ? " selected" : ""}">❌ NG (見つからない時)</div>
+              <div class="flow-split-header${ngSelected && state.selectedBranch.selectionType === "header" ? " selected" : ""}">❌ NG (見つからない時)</div>
               ${ngBeforeConnector}
-              ${ngHtml || `<div class="flow-split-empty">ここにドロップ</div>`}
+              ${ngHtml || `<div class="flow-split-empty${ngSelected && state.selectedBranch.selectionType === "empty" ? " selected" : ""}" data-branch-type="ng" data-parent-id="${step.id}">
+                <span class="flow-merge-indicator">↓</span>
+                <span class="empty-label">何もしないで合流</span>
+                <div class="empty-hint">クリックしてアクションを追加</div>
+              </div>`}
               ${ngEndsStop ? "" : `<div class="flow-branch-filler"></div>`}
             </div>
           </div>
-          <div class="flow-merge${mergeClass}${isMergeSelected ? " selected" : ""}" data-rendered-from="merge" data-action="select-merge" data-parent-id="${step.id}">
-            <span class="flow-merge-pill${isMergeSelected ? " selected" : ""}">↓ メインフローに合流</span>
+          <div class="flow-merge${mergeClass}${isMergeSelected ? " selected" : ""}">
+            <span class="flow-merge-pill${isMergeSelected ? " selected" : ""}" data-rendered-from="merge" data-action="select-merge" data-parent-id="${step.id}">↓ メインフローに合流</span>
           </div>
         </div>
       `);
@@ -393,20 +401,36 @@ function renderFlowStepsRecursive(
     } else if (!hasNext) {
       const isLoopEnabled = document.getElementById("enableLoop")?.checked;
       if (isTopLevel && isLoopEnabled) {
-        const waitSeconds = step.waitAfter ?? defaultWaitSecondsForIndex(index);
-        nodes.push(`
-          <div class="flow-connector">
-            <div class="flow-connector-pill">
-              <span class="flow-connector-dot"></span>
-              待機
-              <input data-field="waitAfter" data-step-id="${step.id}" type="number" min="0" step="0.05" value="${waitSeconds.toFixed(2)}" />
-              s
+        // 末尾の合流ラベル（check）の場合は、直後の待機ピルを表示しない
+        if (step.kind !== "check") {
+          const waitSeconds = step.waitAfter ?? defaultWaitSecondsForIndex(index);
+          nodes.push(`
+            <div class="flow-connector">
+              <div class="flow-connector-pill">
+                <span class="flow-connector-dot"></span>
+                待機
+                <input data-field="waitAfter" data-step-id="${step.id}" type="number" min="0" step="0.05" value="${waitSeconds.toFixed(2)}" />
+                s
+              </div>
             </div>
-          </div>
+          `);
+        }
+        
+        nodes.push(`
           <div class="flow-loop-connector">
             <div class="flow-connector-pill" style="background: #f0f9ff; border-color: #bae6fd; color: #0369a1; padding: 6px 16px;">
               <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="margin-right:6px;"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>
               最初に戻ってループ
+            </div>
+          </div>
+        `);
+      } else if (isTopLevel && !isLoopEnabled) {
+        nodes.push(`
+          <div class="flow-connector"></div>
+          <div class="flow-end-connector">
+            <div class="flow-connector-pill" style="background: #fef2f2; border-color: #fecaca; color: #991b1b; padding: 6px 16px;">
+              <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right:6px;"><path d="M9 9h6v6H9z"/></svg>
+              実行終了
             </div>
           </div>
         `);
@@ -510,9 +534,22 @@ export function renderHotkeys() {
         el.value = "入力待ち...";
         el.classList.add("recording");
       } else {
-        el.value = hotkeyToDisplay(state.globalSettings[id] || hotkeys[id]);
+        let hk = null;
+        if (id === "start" || id === "stop") {
+          const p = state.projects[state.activeProjectId];
+          if (p && p.hotkeys && p.hotkeys[id]) {
+            hk = p.hotkeys[id];
+          }
+        }
+        
+        if (!hk) {
+          hk = state.globalSettings[id] || hotkeys[id];
+        }
+        
+        el.value = hotkeyToDisplay(hk);
         el.classList.remove("recording");
       }
+
     }
 
     const btn = document.querySelector(`.record-btn[data-hotkey="${id}"]`);

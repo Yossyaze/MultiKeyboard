@@ -399,6 +399,19 @@
         color: var(--warn);
       }
 
+      /* Undo/Redo Buttons */
+      #btnUndo, #btnRedo {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+      }
+      
+      button:disabled {
+        opacity: 0.4;
+        cursor: not-allowed;
+        filter: grayscale(1);
+      }
+
       .ok {
         margin-top: 8px;
         font-size: 0.9rem;

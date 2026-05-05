@@ -3,10 +3,9 @@ import { hotkeys, NEW_STORAGE_KEY, OLD_STORAGE_KEY } from './constants.js';
 
 export function saveToStorage() {
   flushActiveProject();
-  state.globalSettings.reloadHotkey = hotkeys.reload;
-  state.globalSettings.ipadMove = hotkeys.ipadMove;
-  state.globalSettings.iphoneMove = hotkeys.iphoneMove;
-  state.globalSettings.stopAllHotkey = hotkeys.stopAll;
+  // state.globalSettings が既に最新であることを前提とするため、ここでの明示的な代入は不要または整理
+  // hotkeys 定数への書き戻しも行わない
+
   const data = {
     activeProjectId: state.activeProjectId,
     projects: state.projects,
@@ -27,19 +26,15 @@ export function loadFromStorage(callbacks) {
       if (data.globalSettings) {
         if (data.globalSettings.reloadHotkey) {
           state.globalSettings.reloadHotkey = data.globalSettings.reloadHotkey;
-          hotkeys.reload = state.globalSettings.reloadHotkey;
         }
         if (data.globalSettings.ipadMove) {
           state.globalSettings.ipadMove = data.globalSettings.ipadMove;
-          hotkeys.ipadMove = state.globalSettings.ipadMove;
         }
         if (data.globalSettings.iphoneMove) {
           state.globalSettings.iphoneMove = data.globalSettings.iphoneMove;
-          hotkeys.iphoneMove = state.globalSettings.iphoneMove;
         }
         if (data.globalSettings.stopAllHotkey) {
           state.globalSettings.stopAllHotkey = data.globalSettings.stopAllHotkey;
-          hotkeys.stopAll = state.globalSettings.stopAllHotkey;
         }
       }
       if (savedActiveId && state.projects[savedActiveId]) {
