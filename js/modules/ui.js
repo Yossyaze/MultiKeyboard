@@ -71,7 +71,7 @@ export function setupAddStepButtons() {
   });
 }
 
-function renderStepCard(step, stepNum) {
+function renderStepCard(step, stepNum, isLast = false) {
   let icon = icons.key;
   if (step.kind === "move") {
     icon = step.moveHotkey === "ipadMove" ? icons.ipad : icons.iphone;
@@ -211,7 +211,7 @@ function renderStepCard(step, stepNum) {
                 : "key";
 
   return `
-    <article class="flow-step ${kindClass}${state.selectedStepId === step.id ? " selected" : ""}" draggable="true" data-step-id="${step.id}">
+    <article class="flow-step ${kindClass}${state.selectedStepId === step.id ? " selected" : ""}${isLast ? " is-last" : ""}" draggable="true" data-step-id="${step.id}">
       <div class="flow-step-header">
         <div class="flow-step-title">
           <span class="flow-index">${stepNum}</span>
@@ -266,7 +266,9 @@ function renderFlowStepsRecursive(
       step.kind === "jump" ||
       (step.kind === "check" && okEndsStop && ngEndsStop);
 
-    const stepCardHtml = renderStepCard(step, stepNum);
+    const isLoopEnabled = document.getElementById("enableLoop")?.checked;
+    const isEffectivelyLast = !hasNext && (!isTopLevel || !isLoopEnabled);
+    const stepCardHtml = renderStepCard(step, stepNum, isEffectivelyLast);
 
     if (step.kind !== "check") {
       nodes.push(stepCardHtml);
@@ -389,7 +391,8 @@ function renderFlowStepsRecursive(
     if (isStopStep) {
       // No connector
     } else if (!hasNext) {
-      if (isTopLevel && txt("enableLoop", "true") === "true") {
+      const isLoopEnabled = document.getElementById("enableLoop")?.checked;
+      if (isTopLevel && isLoopEnabled) {
         const waitSeconds = step.waitAfter ?? defaultWaitSecondsForIndex(index);
         nodes.push(`
           <div class="flow-connector">

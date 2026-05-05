@@ -335,12 +335,12 @@
             </button>
           </div>
 
-          <div class="row span-2">
+          <div class="row span-2 row-toggle">
             <label for="enableTimelineLog">時系列ログを有効にする</label>
-            <select id="enableTimelineLog">
-              <option value="true" selected>有効（Consoleに詳細表示）</option>
-              <option value="false">無効（最小表示）</option>
-            </select>
+            <label class="toggle-switch">
+              <input type="checkbox" id="enableTimelineLog" checked>
+              <span class="toggle-slider"></span>
+            </label>
           </div>
         </div>
       </details>
@@ -409,12 +409,12 @@
               </div>
             </div>
 
-            <div class="row span-2">
+            <div class="row span-2 row-toggle">
               <label for="enableLoop">実行をループさせる</label>
-              <select id="enableLoop">
-                <option value="true" selected>有効（繰り返し実行）</option>
-                <option value="false">無効（1回だけ実行）</option>
-              </select>
+              <label class="toggle-switch">
+                <input type="checkbox" id="enableLoop" checked>
+                <span class="toggle-slider"></span>
+              </label>
             </div>
           </div>
         </section>

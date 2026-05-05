@@ -67,6 +67,11 @@
   bottom: -33px; /* 次の要素とのギャップ(20px) + 合流ブロックの余白(10px)をカバー */
 }
 
+/* 最後の要素は下にはみ出さない */
+.flow-step.is-last::before {
+  bottom: 0;
+}
+
 /* コネクタ: 上から下まで全域 */
 .flow-connector::before {
   top: 0;

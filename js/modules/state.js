@@ -59,8 +59,8 @@ export function flushActiveProject() {
     waitIPad: document.getElementById("waitIPad").value,
     settleIPhone: document.getElementById("settleIPhone").value,
     waitIPhone: document.getElementById("waitIPhone").value,
-    enableTimelineLog: document.getElementById("enableTimelineLog").value,
-    enableLoop: document.getElementById("enableLoop").value,
+    enableTimelineLog: document.getElementById("enableTimelineLog").checked ? "true" : "false",
+    enableLoop: document.getElementById("enableLoop").checked ? "true" : "false",
   };
 }
 

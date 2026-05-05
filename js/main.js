@@ -37,7 +37,13 @@ window.loadProjectState = function(projectId) {
     const fields = ["settleIPad", "waitIPad", "settleIPhone", "waitIPhone", "enableTimelineLog", "enableLoop"];
     fields.forEach(f => {
       const el = document.getElementById(f);
-      if (el) el.value = p.config[f] || (f.startsWith("enable") ? "true" : "0.5");
+      if (el) {
+        if (el.type === "checkbox") {
+          el.checked = p.config[f] === "true";
+        } else {
+          el.value = p.config[f] || (f.startsWith("enable") ? "true" : "0.5");
+        }
+      }
     });
   }
   
@@ -472,6 +478,16 @@ document.addEventListener("DOMContentLoaded", () => {
       renderHotkeys();
       saveToStorage();
     };
+  });
+
+  // 設定変更時の自動更新リスナー
+  ["settleIPad", "waitIPad", "settleIPhone", "waitIPhone", "enableTimelineLog", "enableLoop"].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) {
+      el.onchange = () => {
+        refreshFlowViews();
+      };
+    }
   });
 
   refreshFlowViews();
