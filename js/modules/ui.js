@@ -154,11 +154,6 @@ function renderStepCard(step, stepNum) {
             ${stepOptions}
           </select>
         </div>
-        <div class="flow-summary-bar">
-          <span>ジャンプ</span>
-          <span class="flow-summary-arrow">➔</span>
-          <span class="flow-summary-target">${targetDesc} へ</span>
-        </div>
       </div>
     `;
     editorContent = "";
@@ -268,12 +263,38 @@ function renderFlowStepsRecursive(
         step.ngBranch[step.ngBranch.length - 1].kind === "jump");
     const isStopStep =
       step.kind === "stop" ||
+      step.kind === "jump" ||
       (step.kind === "check" && okEndsStop && ngEndsStop);
 
     const stepCardHtml = renderStepCard(step, stepNum);
 
     if (step.kind !== "check") {
       nodes.push(stepCardHtml);
+    }
+
+    // JUMPステップの場合、ここで待機コネクタとジャンプ先ラベルを追加して終了
+    if (step.kind === "jump") {
+      const waitSeconds = step.waitAfter ?? defaultWaitSecondsForIndex(index);
+      const targetDesc = getStepLabelById(step.targetId) || "未設定";
+      nodes.push(`
+        <div class="flow-jump-group">
+          <div class="flow-connector">
+            <div class="flow-connector-pill">
+              <span class="flow-connector-dot"></span>
+              待機
+              <input data-field="waitAfter" data-step-id="${step.id}" type="number" min="0" step="0.05" value="${waitSeconds.toFixed(2)}" />
+              s
+            </div>
+          </div>
+          <div class="flow-jump-label">
+            <div class="flow-jump-pill">
+              ${icons.jump}
+              <span>${targetDesc} へジャンプ</span>
+            </div>
+          </div>
+        </div>
+      `);
+      return; // このステップの処理はここまで
     }
 
     if (step.kind === "check") {
@@ -329,27 +350,37 @@ function renderFlowStepsRecursive(
         </div>
       `;
 
+      const okSelected =
+        state.selectedBranch &&
+        state.selectedBranch.checkId === step.id &&
+        state.selectedBranch.branchType === "ok";
+      const ngSelected =
+        state.selectedBranch &&
+        state.selectedBranch.checkId === step.id &&
+        state.selectedBranch.branchType === "ng";
+
+      const isMergeSelected = state.selectedMergeId === step.id;
       nodes.push(`
         <div class="flow-check-block${mergeClass}">
           <div class="flow-check-card">
             ${stepCardHtml}
           </div>
           <div class="flow-split" data-parent-check-id="${step.id}">
-            <div class="flow-split-col ok${state.selectedBranch && state.selectedBranch.checkId === step.id && state.selectedBranch.branchType === "ok" ? " selected" : ""}${okEndsStop ? " ends-stop" : ""}" data-branch-type="ok" data-parent-id="${step.id}">
-              <div class="flow-split-header">✅ OK (見つかった時)</div>
+            <div class="flow-split-col ok${okSelected ? " selected" : ""}${okEndsStop ? " ends-stop" : ""}" data-branch-type="ok" data-parent-id="${step.id}">
+              <div class="flow-split-header${okSelected ? " selected" : ""}">✅ OK (見つかった時)</div>
               ${okBeforeConnector}
               ${okHtml || `<div class="flow-split-empty">ここにドロップ</div>`}
               ${okEndsStop ? "" : `<div class="flow-branch-filler"></div>`}
             </div>
-            <div class="flow-split-col ng${state.selectedBranch && state.selectedBranch.checkId === step.id && state.selectedBranch.branchType === "ng" ? " selected" : ""}${ngEndsStop ? " ends-stop" : ""}" data-branch-type="ng" data-parent-id="${step.id}">
-              <div class="flow-split-header">❌ NG (見つからない時)</div>
+            <div class="flow-split-col ng${ngSelected ? " selected" : ""}${ngEndsStop ? " ends-stop" : ""}" data-branch-type="ng" data-parent-id="${step.id}">
+              <div class="flow-split-header${ngSelected ? " selected" : ""}">❌ NG (見つからない時)</div>
               ${ngBeforeConnector}
               ${ngHtml || `<div class="flow-split-empty">ここにドロップ</div>`}
               ${ngEndsStop ? "" : `<div class="flow-branch-filler"></div>`}
             </div>
           </div>
-          <div class="flow-merge${mergeClass}" data-rendered-from="merge">
-            <span class="flow-merge-pill">↓ メインフローに合流</span>
+          <div class="flow-merge${mergeClass}${isMergeSelected ? " selected" : ""}" data-rendered-from="merge" data-action="select-merge" data-parent-id="${step.id}">
+            <span class="flow-merge-pill${isMergeSelected ? " selected" : ""}">↓ メインフローに合流</span>
           </div>
         </div>
       `);
@@ -391,7 +422,7 @@ function renderFlowStepsRecursive(
       `);
     }
 
-    if (branchWaitInfo && !hasNext && !isStopStep && step.kind !== "jump") {
+    if (branchWaitInfo && !hasNext && !isStopStep) {
       nodes.push(`
         <div class="flow-connector is-branch">
           <div class="flow-connector-pill">

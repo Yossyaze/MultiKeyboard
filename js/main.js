@@ -189,6 +189,10 @@ function addStep(kind, moveHotkey = "ipadMove") {
         parent.ngBranch.push(step);
       }
     }
+  } else if (state.selectedMergeId) {
+    const loc = findStepArrayAndIndex(state.selectedMergeId, state.flowSteps);
+    if (loc) loc.array.splice(loc.index + 1, 0, step);
+    else state.flowSteps.push(step);
   } else if (state.selectedStepId) {
     const loc = findStepArrayAndIndex(state.selectedStepId, state.flowSteps);
     if (loc) loc.array.splice(loc.index + 1, 0, step);
@@ -409,18 +413,33 @@ document.addEventListener("DOMContentLoaded", () => {
     if (stepEl) {
       const id = Number(stepEl.dataset.stepId);
       state.selectedStepId = state.selectedStepId === id ? null : id;
+      state.selectedMergeId = null;
       state.selectedBranch = null;
       refreshFlowViews();
-    } else if (splitColEl) {
-      const checkId = Number(splitColEl.dataset.parentId);
-      const type = splitColEl.dataset.branchType;
-      state.selectedBranch = (state.selectedBranch?.checkId === checkId && state.selectedBranch?.branchType === type) ? null : { checkId, branchType: type };
+    } else if (e.target.closest("[data-action='select-merge']")) {
+      const el = e.target.closest("[data-action='select-merge']");
+      const id = Number(el.dataset.parentId);
+      state.selectedMergeId = state.selectedMergeId === id ? null : id;
       state.selectedStepId = null;
+      state.selectedBranch = null;
+      refreshFlowViews();
+    } else if (e.target.closest(".flow-split-header")) {
+      const col = e.target.closest(".flow-split-col");
+      const checkId = Number(col.dataset.parentId);
+      const type = col.dataset.branchType;
+      state.selectedBranch =
+        state.selectedBranch?.checkId === checkId &&
+        state.selectedBranch?.branchType === type
+          ? null
+          : { checkId, branchType: type };
+      state.selectedStepId = null;
+      state.selectedMergeId = null;
       refreshFlowViews();
     } else {
-      if (state.selectedStepId !== null || state.selectedBranch !== null) {
+      if (state.selectedStepId !== null || state.selectedBranch !== null || state.selectedMergeId !== null) {
         state.selectedStepId = null;
         state.selectedBranch = null;
+        state.selectedMergeId = null;
         refreshFlowViews();
       }
     }

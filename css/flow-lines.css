@@ -49,7 +49,8 @@
 .flow-step::before,
 .flow-connector::before,
 .flow-loop-connector::before,
-.flow-split-header::before {
+.flow-split-header::before,
+.flow-jump-label::before {
   content: "";
   position: absolute;
   left: 50%; /* ステップの中央 */
@@ -78,10 +79,14 @@
   bottom: 50%;
 }
 
-/* STOP/JUMP: 線を描かない (中央から下への線を消す) */
-.flow-step.stop::before,
-.flow-step.jump::before {
+.flow-step.stop::before {
   display: none !important;
+}
+
+/* JUMPラベル: 上から中央（ピル）まで */
+.flow-jump-label::before {
+  top: 0;
+  bottom: 50%;
 }
 
 /* OK/NGラベル: 上から下（次の要素との隙間）まで貫通 */
@@ -166,6 +171,11 @@
 .flow-merge.ng-ends::before { display: none; }
 .flow-merge.both-ends { display: none; }
 
+/* OK側が停止(STOP/JUMP)で終わる場合、上方向への接続線を消す（中央から開始） */
+.flow-merge.ok-ends::after {
+  top: 50%;
+}
+
 /* セグメント方式による接続線の描画 */
 .flow-step::before,
 .flow-connector::before,
@@ -175,7 +185,8 @@
 .flow-check-card::after,
 .flow-merge::before,
 .flow-merge::after,
-.flow-split-header::before {
+.flow-split-header::before,
+.flow-jump-label::before {
   display: block;
 }
 

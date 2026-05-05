@@ -5,6 +5,7 @@ export const state = {
   activeProjectId: null,
   selectedStepId: null,
   selectedBranch: null,
+  selectedMergeId: null,
   globalSettings: {
     reloadHotkey: { key: "r", mods: ["ctrl", "shift"] },
     ipadMove: { key: "a", mods: ["ctrl", "shift"] },

@@ -76,7 +76,8 @@
 
 .flow-track > .flow-step,
 .flow-track > .flow-connector,
-.flow-track > .flow-loop-connector {
+.flow-track > .flow-loop-connector,
+.flow-track > .flow-jump-group {
   grid-column: 1;
 }
 
@@ -126,11 +127,16 @@
 }
 
 .flow-split-col.selected {
-  background: rgba(59, 130, 246, 0.05);
+  /* カラム全体のハイライトを廃止 */
+  background: transparent;
+  box-shadow: none;
+}
+
+.flow-split-header.selected {
+  border-color: #3b82f6 !important;
   box-shadow:
     0 0 0 1px #3b82f6,
     0 0 0 4px rgba(59, 130, 246, 0.15);
-  border-radius: 8px;
 }
 
 .flow-connector {
@@ -647,6 +653,52 @@
   height: 24px;
   line-height: 1;
   box-sizing: border-box;
+  transition: all 0.2s;
+}
+
+.flow-merge-pill.selected {
+  border-color: #3b82f6 !important;
+  box-shadow:
+    0 0 0 1px #3b82f6,
+    0 0 0 4px rgba(59, 130, 246, 0.15);
+}
+
+/* ========== JUMP ラベル & グループ ========== */
+.flow-jump-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0; /* 内部のパディングで調整 */
+  width: 100%;
+}
+
+.flow-jump-label {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 4px 0 16px;
+  position: relative;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.flow-jump-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 16px;
+  border-radius: 999px;
+  background: var(--clr-jump-bg);
+  color: var(--clr-jump-ink);
+  font-size: 0.74rem;
+  font-weight: 700;
+  border: 1px solid var(--clr-jump-line);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  white-space: nowrap;
+}
+
+.flow-jump-pill svg {
+  color: var(--clr-jump-ink);
+  opacity: 0.8;
 }
 
 @media (max-width: 860px) {
