@@ -1,0 +1,132 @@
+/* 
+  MultiKeyboard Flow Builder - Line & Connector Styles
+  一本の「独立したレール」による描画ロジック
+*/
+
+/* 
+  各要素を不透明にし、背面にあるレールを隠すことで接続を実現する。
+  この方式では z-index の複雑な管理が不要。
+*/
+
+.flow-step,
+.flow-connector,
+.flow-connector-pill,
+.flow-merge-pill,
+.flow-split-header,
+.flow-split-empty,
+.flow-loop-connector,
+.flow-loop-connector .flow-connector-pill {
+  position: relative;
+  z-index: auto; /* 親の .flow-track が作成するコンテキスト内で z=0 として扱う */
+}
+
+/* カードやピルには背景色を設定してレールを隠す */
+.flow-step,
+.flow-connector-pill,
+.flow-merge-pill,
+.flow-split-header,
+.flow-split-empty {
+  background: #ffffff;
+}
+
+/* コンテナ自体は透明にしてレールが見えるようにする */
+.flow-connector,
+.flow-loop-connector,
+.flow-check-block,
+.flow-split-col,
+.flow-merge {
+  position: relative;
+  background: transparent !important;
+  z-index: auto;
+}
+
+/* メインレール（一本の独立した線）を廃止し、セグメント方式へ */
+.flow-track::before {
+  display: none !important;
+}
+
+/* 各要素が自分の範囲に線を引く */
+.flow-step::before,
+.flow-connector::before,
+.flow-loop-connector::before {
+  content: "";
+  position: absolute;
+  left: calc(25% - 4.5px); /* メイン軸の位置 */
+  width: 2px;
+  background: var(--line);
+  z-index: -1; /* 親の背景より後ろに配置 */
+  transform: translateX(-50%);
+  pointer-events: none;
+}
+
+/* カード: 上から下（次の要素との隙間）まで貫通 */
+.flow-step::before {
+  top: 0;
+  bottom: -20px; /* 次の要素とのギャップ(row-gap:20px)を埋める */
+}
+
+/* コネクタ: 上から下まで全域 */
+.flow-connector::before {
+  top: 0;
+  bottom: 0;
+}
+
+/* ループコネクタ: 上から中央まで */
+.flow-loop-connector::before {
+  top: 0;
+  bottom: 50%;
+}
+
+/* STOP/JUMP: 線を描かない (中央から下への線を消す) */
+.flow-step.stop::before,
+.flow-step.jump::before {
+  display: none !important;
+}
+
+/* 分岐内（OK/NGカラム）のセグメント調整 */
+.flow-split-col::before {
+  display: none !important; /* 古いレールを廃止 */
+}
+
+/* 分岐内のカードとコネクタの軸を中央(50%)にする */
+.flow-split-col .flow-step::before,
+.flow-split-col .flow-connector::before {
+  left: 50%;
+}
+
+/* 分岐（CHECK）の横線 */
+.flow-split-col.ng::after {
+  content: "";
+  position: absolute;
+  top: -44px;
+  right: calc(50% - 1px);
+  width: calc(100% + var(--flow-branch-gap) + 2px);
+  height: 2px;
+  background: var(--line);
+  z-index: -1; /* 全ての線は一貫して最背面へ */
+}
+
+/* 合流（MERGE）の横線 */
+.flow-merge::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: calc(25% - 4.5px);
+  width: calc(50% + 9px);
+  height: 2px;
+  background: var(--line);
+  transform: translateY(-1px);
+  z-index: -1; /* 全ての線は一貫して最背面へ */
+}
+
+/* 条件付き表示 */
+.flow-merge.ok-ends::before { display: block; }
+.flow-merge.ng-ends::before { display: none; }
+.flow-merge.both-ends { display: none; }
+
+/* セグメント方式による接続線の描画 */
+.flow-step::before,
+.flow-connector::before,
+.flow-loop-connector::before {
+  display: block;
+}
