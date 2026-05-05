@@ -634,7 +634,7 @@
 
 .flow-merge-pill {
   position: absolute;
-  top: 0;
+  top: 50%;
   left: var(--flow-ok-line-x);
   transform: translate(-50%, -50%);
   display: inline-flex;
@@ -646,7 +646,9 @@
   font-size: 0.7rem;
   font-weight: 700;
   border: 1px solid #e2e8f0;
-  border: 1px solid #e2e8f0;
+  height: 24px;
+  line-height: 1;
+  box-sizing: border-box;
 }
 
 @media (max-width: 860px) {

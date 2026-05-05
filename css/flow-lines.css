@@ -62,7 +62,7 @@
 /* カード: 上から下（次の要素との隙間）まで貫通 */
 .flow-step::before {
   top: 0;
-  bottom: -20px; /* 次の要素とのギャップ(row-gap:20px)を埋める */
+  bottom: -30px; /* 次の要素とのギャップ(20px) + 合流ブロックの余白(10px)をカバー */
 }
 
 /* コネクタ: 上から下まで全域 */
@@ -124,17 +124,34 @@
   pointer-events: none;
 }
 
-/* 合流（MERGE）の横線 */
+/* 合流（MERGE）の横線: ピル中央へサイドから接続 */
 .flow-merge::before {
   content: "";
+  display: block;
   position: absolute;
-  top: 0;
+  top: 50%;
   left: var(--flow-ok-line-x);
-  width: calc(50% - 11px); /* 中心間距離: 50% - (padding) + (gap/2) */
+  width: calc(50% - 11px);
   height: 2px;
   background: var(--line);
-  transform: translateY(-1px);
-  z-index: -1; /* 全ての線は一貫して最背面へ */
+  transform: translateY(-50%);
+  z-index: -1;
+  pointer-events: none;
+}
+
+/* 合流（MERGE）の垂直線: メイン軸を貫通 (上下の隙間を埋める) */
+.flow-merge::after {
+  content: "";
+  display: block;
+  position: absolute;
+  top: -30px; /* 上の要素(Padding等)をカバー */
+  bottom: -10px; /* 下の要素への接続を確実にする */
+  left: var(--flow-ok-line-x);
+  width: 2px;
+  background: var(--line);
+  z-index: -1;
+  transform: translateX(-50%);
+  pointer-events: none;
 }
 
 /* 条件付き表示 */
@@ -148,7 +165,9 @@
 .flow-loop-connector::before,
 .flow-branch-filler::before,
 .flow-check-card::before,
-.flow-check-card::after {
+.flow-check-card::after,
+.flow-merge::before,
+.flow-merge::after {
   display: block;
 }
 
@@ -164,7 +183,7 @@
   position: absolute;
   left: 50%;
   top: 0;
-  bottom: 0;
+  bottom: -30px;
   width: 2px;
   background: var(--line);
   z-index: -1;
