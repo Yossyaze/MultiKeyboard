@@ -1,7 +1,7 @@
 :root {
   /* グリッド中央を完璧に射抜く共通軸（パディング20px, ギャップ18px想定） */
-  --flow-ok-line-x: calc(25% + 5.5px);
-  --flow-ng-line-x: calc(75% - 5.5px);
+  --flow-ok-line-x: calc(25% - 4.5px);
+  --flow-ng-line-x: calc(75% + 4.5px);
   --flow-branch-gap: 18px;
   --flow-track-px: 20px;
   --flow-branch-drop: 20px;

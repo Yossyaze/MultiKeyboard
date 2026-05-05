@@ -68,7 +68,7 @@
 /* コネクタ: 上から下まで全域 */
 .flow-connector::before {
   top: 0;
-  bottom: 0;
+  bottom: -30px; /* 次の要素への隙間を埋める */
 }
 
 /* ループコネクタ: 上から中央まで */
@@ -145,7 +145,7 @@
   display: block;
   position: absolute;
   top: -30px; /* 上の要素(Padding等)をカバー */
-  bottom: -10px; /* 下の要素への接続を確実にする */
+  bottom: -30px; /* 下の要素への接続を確実にする */
   left: var(--flow-ok-line-x);
   width: 2px;
   background: var(--line);

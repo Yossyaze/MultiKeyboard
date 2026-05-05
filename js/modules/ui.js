@@ -1,10 +1,12 @@
-import { state, normalizeStep, findStepById } from './state.js';
-import { hotkeys, hotkeyLabels, hotkeyDisplayIds } from './constants.js';
-import { num, txt, escapeHtml } from './utils.js';
+import { state, normalizeStep, findStepById } from "./state.js";
+import { hotkeys, hotkeyLabels, hotkeyDisplayIds } from "./constants.js";
+import { num, txt, escapeHtml } from "./utils.js";
 
 export function hotkeyToDisplay(hk) {
   if (!hk || !hk.key) return "未設定";
-  const m = hk.mods.map((mod) => mod.charAt(0).toUpperCase() + mod.slice(1)).join("+");
+  const m = hk.mods
+    .map((mod) => mod.charAt(0).toUpperCase() + mod.slice(1))
+    .join("+");
   return (m ? m + "+" : "") + hk.key.toUpperCase();
 }
 
@@ -61,10 +63,10 @@ export function setupAddStepButtons() {
     const btn = document.getElementById(id);
     if (btn) {
       btn.innerHTML = `${icon} <span>${btn.innerText.trim()}</span>`;
-      btn.style.display = 'flex';
-      btn.style.alignItems = 'center';
-      btn.style.gap = '8px';
-      btn.style.justifyContent = 'center';
+      btn.style.display = "flex";
+      btn.style.alignItems = "center";
+      btn.style.gap = "8px";
+      btn.style.justifyContent = "center";
     }
   });
 }
@@ -186,15 +188,15 @@ function renderStepCard(step, stepNum) {
         : "iPhone"
       : step.kind === "click"
         ? "CLICK"
-      : step.kind === "focus"
-        ? "FOCUS"
-      : step.kind === "check"
-        ? "CHECK"
-      : step.kind === "jump"
-        ? "JUMP"
-      : step.kind === "stop"
-        ? "STOP"
-      : "KEY";
+        : step.kind === "focus"
+          ? "FOCUS"
+          : step.kind === "check"
+            ? "CHECK"
+            : step.kind === "jump"
+              ? "JUMP"
+              : step.kind === "stop"
+                ? "STOP"
+                : "KEY";
 
   const kindClass =
     step.kind === "move"
@@ -203,15 +205,15 @@ function renderStepCard(step, stepNum) {
         : "iphone"
       : step.kind === "click"
         ? "click"
-      : step.kind === "focus"
-        ? "focus"
-      : step.kind === "check"
-        ? "check"
-      : step.kind === "jump"
-        ? "jump"
-      : step.kind === "stop"
-        ? "stop"
-      : "key";
+        : step.kind === "focus"
+          ? "focus"
+          : step.kind === "check"
+            ? "check"
+            : step.kind === "jump"
+              ? "jump"
+              : step.kind === "stop"
+                ? "stop"
+                : "key";
 
   return `
     <article class="flow-step ${kindClass}${state.selectedStepId === step.id ? " selected" : ""}" draggable="true" data-step-id="${step.id}">
@@ -238,7 +240,12 @@ function renderStepCard(step, stepNum) {
   `;
 }
 
-function renderFlowStepsRecursive(steps, isTopLevel = false, branchWaitInfo = null, startIndex = 1) {
+function renderFlowStepsRecursive(
+  steps,
+  isTopLevel = false,
+  branchWaitInfo = null,
+  startIndex = 1,
+) {
   const nodes = [];
   let currentIdx = startIndex;
 
@@ -251,12 +258,14 @@ function renderFlowStepsRecursive(steps, isTopLevel = false, branchWaitInfo = nu
       step.kind === "check" &&
       step.okBranch &&
       step.okBranch.length > 0 &&
-      (step.okBranch[step.okBranch.length - 1].kind === "stop" || step.okBranch[step.okBranch.length - 1].kind === "jump");
+      (step.okBranch[step.okBranch.length - 1].kind === "stop" ||
+        step.okBranch[step.okBranch.length - 1].kind === "jump");
     const ngEndsStop =
       step.kind === "check" &&
       step.ngBranch &&
       step.ngBranch.length > 0 &&
-      (step.ngBranch[step.ngBranch.length - 1].kind === "stop" || step.ngBranch[step.ngBranch.length - 1].kind === "jump");
+      (step.ngBranch[step.ngBranch.length - 1].kind === "stop" ||
+        step.ngBranch[step.ngBranch.length - 1].kind === "jump");
     const isStopStep =
       step.kind === "stop" ||
       (step.kind === "check" && okEndsStop && ngEndsStop);
@@ -268,18 +277,30 @@ function renderFlowStepsRecursive(steps, isTopLevel = false, branchWaitInfo = nu
     }
 
     if (step.kind === "check") {
-      const { html: okHtml, nextIdx: nextIdxAfterOk } = renderFlowStepsRecursive(step.okBranch || [], false, {
-        value: step.okWaitAfter,
-        parentStepId: step.id,
-        field: "okWaitAfter",
-      }, currentIdx);
+      const { html: okHtml, nextIdx: nextIdxAfterOk } =
+        renderFlowStepsRecursive(
+          step.okBranch || [],
+          false,
+          {
+            value: step.okWaitAfter,
+            parentStepId: step.id,
+            field: "okWaitAfter",
+          },
+          currentIdx,
+        );
       currentIdx = nextIdxAfterOk;
 
-      const { html: ngHtml, nextIdx: nextIdxAfterNg } = renderFlowStepsRecursive(step.ngBranch || [], false, {
-        value: step.ngWaitAfter,
-        parentStepId: step.id,
-        field: "ngWaitAfter",
-      }, currentIdx);
+      const { html: ngHtml, nextIdx: nextIdxAfterNg } =
+        renderFlowStepsRecursive(
+          step.ngBranch || [],
+          false,
+          {
+            value: step.ngWaitAfter,
+            parentStepId: step.id,
+            field: "ngWaitAfter",
+          },
+          currentIdx,
+        );
       currentIdx = nextIdxAfterNg;
 
       let mergeClass = "";
@@ -424,11 +445,17 @@ export function updateMiniFlow() {
     }
 
     const item = document.createElement("div");
-    const kindClass = step.kind === "move" ? (step.moveHotkey === "ipadMove" ? "move" : "iphone") : step.kind;
+    const kindClass =
+      step.kind === "move"
+        ? step.moveHotkey === "ipadMove"
+          ? "move"
+          : "iphone"
+        : step.kind;
     item.className = `mini-step mini-step-${kindClass}`;
-    
+
     let iconHtml = icons.key;
-    if (step.kind === "move") iconHtml = step.moveHotkey === "ipadMove" ? icons.ipad : icons.iphone;
+    if (step.kind === "move")
+      iconHtml = step.moveHotkey === "ipadMove" ? icons.ipad : icons.iphone;
     else if (step.kind === "click") iconHtml = icons.click;
     else if (step.kind === "focus") iconHtml = icons.focus;
     else if (step.kind === "check") iconHtml = icons.check;
@@ -453,7 +480,7 @@ export function renderHotkeys() {
         el.classList.remove("recording");
       }
     }
-    
+
     const btn = document.querySelector(`.record-btn[data-hotkey="${id}"]`);
     if (btn) {
       if (state.recordingTarget === id) {
@@ -467,19 +494,28 @@ export function renderHotkeys() {
   });
 }
 
-export function updateProjectTabs(projects = state.projects, activeProjectId = state.activeProjectId, onSelect, onAdd) {
+export function updateProjectTabs(
+  projects = state.projects,
+  activeProjectId = state.activeProjectId,
+  onSelect,
+  onAdd,
+) {
   const container = document.getElementById("projectTabs");
   if (!container || !projects) return;
   container.innerHTML = "";
-  
-  const selectCb = onSelect || ((id) => {
-    if (id === state.activeProjectId) return;
-    window.loadProjectState(id);
-  });
-  const addCb = onAdd || (() => {
-    const name = prompt("新しいプロジェクト名", "New Project");
-    if (name) window.createNewProject(name);
-  });
+
+  const selectCb =
+    onSelect ||
+    ((id) => {
+      if (id === state.activeProjectId) return;
+      window.loadProjectState(id);
+    });
+  const addCb =
+    onAdd ||
+    (() => {
+      const name = prompt("新しいプロジェクト名", "New Project");
+      if (name) window.createNewProject(name);
+    });
 
   // プロジェクトの順序が未設定の場合は、現在のキーから作成
   if (state.projectOrder.length === 0 && Object.keys(projects).length > 0) {
@@ -489,7 +525,7 @@ export function updateProjectTabs(projects = state.projects, activeProjectId = s
   state.projectOrder.forEach((id) => {
     const p = projects[id];
     if (!p) return;
-    
+
     const tab = document.createElement("div");
     tab.className = `tab${id === activeProjectId ? " active" : ""}`;
     tab.dataset.id = id;
@@ -520,7 +556,7 @@ export function updateProjectTabs(projects = state.projects, activeProjectId = s
 
     tab.appendChild(nameSpan);
     tab.appendChild(closeBtn);
-    
+
     // ドラッグ＆ドロップのイベント
     tab.addEventListener("dragstart", (e) => {
       e.dataTransfer.setData("text/plain", id);
@@ -535,7 +571,9 @@ export function updateProjectTabs(projects = state.projects, activeProjectId = s
     });
     tab.addEventListener("dragend", () => {
       tab.classList.remove("dragging");
-      container.querySelectorAll(".tab").forEach(t => t.classList.remove("drag-over"));
+      container
+        .querySelectorAll(".tab")
+        .forEach((t) => t.classList.remove("drag-over"));
     });
     tab.addEventListener("drop", (e) => {
       e.preventDefault();
@@ -574,13 +612,13 @@ export async function updateMermaidGraph() {
   }
 
   const lines = ["graph TD"];
-  const getTargetNodeId = (id) => id ? "s" + id : null;
+  const getTargetNodeId = (id) => (id ? "s" + id : null);
 
   state.flowSteps.forEach((step, index) => {
     const s = normalizeStep(step);
     const nodeId = "s" + s.id;
     const labelText = `Step ${index + 1}: ${s.title || s.kind}`;
-    
+
     let shape;
     if (s.kind === "check") shape = `{"${labelText}"}`;
     else if (s.kind === "stop") shape = `(("${labelText}"))`;
@@ -597,11 +635,15 @@ export async function updateMermaidGraph() {
       const tgtId = getTargetNodeId(s.targetId);
       if (tgtId) lines.push(`  ${nodeId} -.-> ${tgtId}`);
     } else if (s.kind === "check") {
-      const nextMainId = index < state.flowSteps.length - 1 ? "s" + state.flowSteps[index + 1].id : null;
-      
+      const nextMainId =
+        index < state.flowSteps.length - 1
+          ? "s" + state.flowSteps[index + 1].id
+          : null;
+
       const addBranch = (branch, prefix, label) => {
         if (!branch || branch.length === 0) {
-          if (nextMainId) lines.push(`  ${nodeId} -- ${label} --> ${nextMainId}`);
+          if (nextMainId)
+            lines.push(`  ${nodeId} -- ${label} --> ${nextMainId}`);
           return;
         }
         lines.push(`  ${nodeId} -- ${label} --> ${prefix}_${branch[0].id}`);
@@ -609,13 +651,13 @@ export async function updateMermaidGraph() {
           const bNodeId = `${prefix}_${bs.id}`;
           lines.push(`  ${bNodeId}["${bs.title || bs.kind}"]`);
           if (bi < branch.length - 1) {
-            lines.push(`  ${bNodeId} --> ${prefix}_${branch[bi+1].id}`);
+            lines.push(`  ${bNodeId} --> ${prefix}_${branch[bi + 1].id}`);
           } else if (nextMainId) {
             lines.push(`  ${bNodeId} --> ${nextMainId}`);
           }
         });
       };
-      
+
       addBranch(s.okBranch, nodeId + "_ok", "OK");
       addBranch(s.ngBranch, nodeId + "_ng", "NG");
     } else {
