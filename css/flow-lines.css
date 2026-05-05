@@ -51,7 +51,7 @@
 .flow-loop-connector::before {
   content: "";
   position: absolute;
-  left: calc(25% - 4.5px); /* メイン軸の位置 */
+  left: 50%; /* ステップの中央 */
   width: 2px;
   background: var(--line);
   z-index: -1; /* 親の背景より後ろに配置 */
@@ -111,8 +111,8 @@
   content: "";
   position: absolute;
   top: 0;
-  left: calc(25% - 4.5px);
-  width: calc(50% + 9px);
+  left: var(--flow-ok-line-x);
+  width: calc(50% - 11px); /* 中心間距離: 50% - (padding) + (gap/2) */
   height: 2px;
   background: var(--line);
   transform: translateY(-1px);

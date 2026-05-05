@@ -635,7 +635,7 @@
 .flow-merge-pill {
   position: absolute;
   top: 0;
-  left: calc(25% - 4.5px);
+  left: var(--flow-ok-line-x);
   transform: translate(-50%, -50%);
   display: inline-flex;
   align-items: center;

@@ -214,7 +214,7 @@ function renderStepCard(step, stepNum) {
       : "key";
 
   return `
-    <article class="flow-step${state.selectedStepId === step.id ? " selected" : ""}" draggable="true" data-step-id="${step.id}">
+    <article class="flow-step ${kindClass}${state.selectedStepId === step.id ? " selected" : ""}" draggable="true" data-step-id="${step.id}">
       <div class="flow-step-header">
         <div class="flow-step-title">
           <span class="flow-index">${stepNum}</span>
@@ -390,6 +390,9 @@ export function updateFlowPreview() {
   if (!track) return;
   const { html } = renderFlowStepsRecursive(state.flowSteps, true);
   track.innerHTML = html;
+
+  // レールの長さを動的に調整する処理は廃止（CSSセグメント方式へ移行）
+  requestAnimationFrame(() => {});
 }
 
 export function updateMiniFlow() {
