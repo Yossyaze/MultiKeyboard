@@ -48,7 +48,8 @@
 /* 各要素が自分の範囲に線を引く */
 .flow-step::before,
 .flow-connector::before,
-.flow-loop-connector::before {
+.flow-loop-connector::before,
+.flow-split-header::before {
   content: "";
   position: absolute;
   left: 50%; /* ステップの中央 */
@@ -62,13 +63,13 @@
 /* カード: 上から下（次の要素との隙間）まで貫通 */
 .flow-step::before {
   top: 0;
-  bottom: -30px; /* 次の要素とのギャップ(20px) + 合流ブロックの余白(10px)をカバー */
+  bottom: -33px; /* 次の要素とのギャップ(20px) + 合流ブロックの余白(10px)をカバー */
 }
 
 /* コネクタ: 上から下まで全域 */
 .flow-connector::before {
   top: 0;
-  bottom: -30px; /* 次の要素への隙間を埋める */
+  bottom: -33px; /* 次の要素への隙間を埋める */
 }
 
 /* ループコネクタ: 上から中央まで */
@@ -81,6 +82,12 @@
 .flow-step.stop::before,
 .flow-step.jump::before {
   display: none !important;
+}
+
+/* OK/NGラベル: 上から下（次の要素との隙間）まで貫通 */
+.flow-split-header::before {
+  top: 0;
+  bottom: -33px;
 }
 
 /* 分岐内（OK/NGカラム）のセグメント調整 */
@@ -117,7 +124,7 @@
   top: 50%;
   left: calc(150% + var(--flow-branch-gap));
   width: 2px;
-  bottom: -60px; /* NGカラムに届くのに十分な長さ（重なりは無視される） */
+  bottom: -80px; /* NGカラムに届くのに十分な長さ（重なりは無視される） */
   background: var(--line);
   z-index: -1;
   transform: translateX(-50%);
@@ -131,7 +138,7 @@
   position: absolute;
   top: 50%;
   left: var(--flow-ok-line-x);
-  width: calc(50% - 11px);
+  width: calc(var(--flow-ng-line-x) - var(--flow-ok-line-x));
   height: 2px;
   background: var(--line);
   transform: translateY(-50%);
@@ -144,8 +151,8 @@
   content: "";
   display: block;
   position: absolute;
-  top: -30px; /* 上の要素(Padding等)をカバー */
-  bottom: -30px; /* 下の要素への接続を確実にする */
+  top: -33px; /* 上の要素(Padding等)をカバー */
+  bottom: -33px; /* 下の要素への接続を確実にする */
   left: var(--flow-ok-line-x);
   width: 2px;
   background: var(--line);
@@ -167,7 +174,8 @@
 .flow-check-card::before,
 .flow-check-card::after,
 .flow-merge::before,
-.flow-merge::after {
+.flow-merge::after,
+.flow-split-header::before {
   display: block;
 }
 
@@ -183,7 +191,7 @@
   position: absolute;
   left: 50%;
   top: 0;
-  bottom: -30px;
+  bottom: -33px;
   width: 2px;
   background: var(--line);
   z-index: -1;
