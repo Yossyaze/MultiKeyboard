@@ -6,7 +6,6 @@ import { generateLua } from './modules/lua.js';
 import { 
   updateFlowPreview, 
   updateMiniFlow, 
-  updateMermaidGraph, 
   renderHotkeys, 
   updateProjectTabs, 
   setStatus,
@@ -14,6 +13,7 @@ import {
   keyToDisplay,
   setupAddStepButtons
 } from './modules/ui.js';
+import { updateMermaidGraph } from './modules/flowchart.js';
 
 // --- Global Functions (needed for inline HTML event handlers or external access) ---
 
