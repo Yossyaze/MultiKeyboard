@@ -121,10 +121,15 @@ window.loadProjectState = function(projectId) {
   setStatus(`プロジェクト「${p.name}」を読み込みました`);
 };
 
+let refreshTimeout = null;
 window.refreshFlowViews = function() {
-  updateFlowPreview();
-  updateMiniFlow();
-  saveToStorage();
+  if (refreshTimeout) clearTimeout(refreshTimeout);
+  refreshTimeout = setTimeout(() => {
+    updateFlowPreview();
+    updateMiniFlow();
+    saveToStorage();
+    refreshTimeout = null;
+  }, 10);
 };
 
 window.handleAppSelect = async function(event, stepId) {
@@ -259,12 +264,20 @@ function addStep(kind, moveHotkey = "ipadMove") {
   if (state.selectedBranch) {
     const parent = findStepById(state.selectedBranch.checkId);
     if (parent) {
-      if (state.selectedBranch.branchType === "ok") {
+    if (state.selectedBranch.branchType === "ok") {
         parent.okBranch = parent.okBranch || [];
-        parent.okBranch.push(step);
+        if (state.selectedBranch.selectionType === 'header') {
+          parent.okBranch.unshift(step);
+        } else {
+          parent.okBranch.push(step);
+        }
       } else {
         parent.ngBranch = parent.ngBranch || [];
-        parent.ngBranch.push(step);
+        if (state.selectedBranch.selectionType === 'header') {
+          parent.ngBranch.unshift(step);
+        } else {
+          parent.ngBranch.push(step);
+        }
       }
     }
   } else if (state.selectedMergeId) {
@@ -279,6 +292,8 @@ function addStep(kind, moveHotkey = "ipadMove") {
     state.flowSteps.push(step);
   }
   state.selectedStepId = step.id;
+  state.selectedBranch = null;
+  state.selectedMergeId = null;
   refreshFlowViews();
 }
 
@@ -307,6 +322,175 @@ function updateStepField(stepId, field, value) {
     step[field] = value;
   }
   refreshFlowViews();
+}
+
+let draggedStepId = null;
+
+window.reorderSteps = function(draggedId, targetId, position) {
+  if (draggedId === targetId) return;
+  
+  saveHistory();
+  const draggedLoc = findStepArrayAndIndex(draggedId, state.flowSteps);
+  if (!draggedLoc) return;
+  
+  const stepToMove = draggedLoc.array[draggedLoc.index];
+  draggedLoc.array.splice(draggedLoc.index, 1);
+  
+  const targetLoc = findStepArrayAndIndex(targetId, state.flowSteps);
+  if (targetLoc) {
+    let insertIndex = targetLoc.index;
+    if (position === 'after') insertIndex++;
+    targetLoc.array.splice(insertIndex, 0, stepToMove);
+  } else {
+    // 構造が変わって見つからない場合は末尾へ（安全策）
+    state.flowSteps.push(stepToMove);
+  }
+  refreshFlowViews();
+};
+
+window.moveToBranch = function(draggedId, parentId, branchType) {
+  saveHistory();
+  const draggedLoc = findStepArrayAndIndex(draggedId, state.flowSteps);
+  if (!draggedLoc) return;
+  
+  const stepToMove = draggedLoc.array[draggedLoc.index];
+  const parentStep = findStepById(parentId);
+  if (!parentStep || parentStep.kind !== 'check') return;
+  
+  draggedLoc.array.splice(draggedLoc.index, 1);
+  
+  if (branchType === 'ok') {
+    parentStep.okBranch = parentStep.okBranch || [];
+    parentStep.okBranch.unshift(stepToMove);
+  } else {
+    parentStep.ngBranch = parentStep.ngBranch || [];
+    parentStep.ngBranch.unshift(stepToMove);
+  }
+  refreshFlowViews();
+};
+
+window.moveToStart = function(draggedId) {
+  saveHistory();
+  const draggedLoc = findStepArrayAndIndex(draggedId, state.flowSteps);
+  if (!draggedLoc) return;
+  
+  const stepToMove = draggedLoc.array[draggedLoc.index];
+  draggedLoc.array.splice(draggedLoc.index, 1);
+  state.flowSteps.unshift(stepToMove);
+  refreshFlowViews();
+};
+
+window.moveToEnd = function(draggedId, parentId, branchType) {
+  saveHistory();
+  const draggedLoc = findStepArrayAndIndex(draggedId, state.flowSteps);
+  if (!draggedLoc) return;
+  
+  const stepToMove = draggedLoc.array[draggedLoc.index];
+  draggedLoc.array.splice(draggedLoc.index, 1);
+  
+  if (branchType === 'ok_ng_merge') {
+    const targetLoc = findStepArrayAndIndex(parentId, state.flowSteps);
+    if (targetLoc) {
+      targetLoc.array.splice(targetLoc.index + 1, 0, stepToMove);
+    } else {
+      state.flowSteps.push(stepToMove);
+    }
+  } else if (parentId && branchType) {
+    const parentStep = findStepById(parentId);
+    if (parentStep && parentStep.kind === 'check') {
+      if (branchType === 'ok') {
+        parentStep.okBranch = parentStep.okBranch || [];
+        parentStep.okBranch.push(stepToMove);
+      } else {
+        parentStep.ngBranch = parentStep.ngBranch || [];
+        parentStep.ngBranch.push(stepToMove);
+      }
+    }
+  } else {
+    state.flowSteps.push(stepToMove);
+  }
+  refreshFlowViews();
+};
+
+window.setupStepDragAndDrop = function() {
+  const steps = document.querySelectorAll('.flow-step');
+  steps.forEach(step => {
+    step.addEventListener('dragstart', (e) => {
+      draggedStepId = Number(step.dataset.stepId);
+      step.classList.add('dragging');
+      e.dataTransfer.effectAllowed = 'move';
+    });
+    
+    step.addEventListener('dragend', () => {
+      step.classList.remove('dragging');
+      document.querySelectorAll('.drag-over-top, .drag-over').forEach(el => {
+        el.classList.remove('drag-over-top', 'drag-over');
+      });
+    });
+
+    step.addEventListener('dragover', (e) => {
+      e.preventDefault();
+      const sid = Number(step.dataset.stepId);
+      if (sid === draggedStepId || isStepInside(draggedStepId, sid)) return;
+      step.classList.add('drag-over-top');
+    });
+
+    step.addEventListener('dragleave', () => {
+      step.classList.remove('drag-over-top');
+    });
+
+    step.addEventListener('drop', (e) => {
+      e.preventDefault();
+      step.classList.remove('drag-over-top');
+      const targetId = Number(step.dataset.stepId);
+      if (targetId === draggedStepId || isStepInside(draggedStepId, targetId)) return;
+      
+      window.reorderSteps(draggedStepId, targetId, 'before');
+    });
+  });
+  
+  // 特別なドロップターゲット（先頭、末尾、ブランチヘッダー）
+  const specialTargets = document.querySelectorAll('.flow-split-header, .flow-split-empty, .flow-loop-connector, .flow-end-connector, .flow-merge-pill');
+  specialTargets.forEach(target => {
+    target.addEventListener('dragover', (e) => {
+      e.preventDefault();
+      const sid = Number(target.dataset.branchParentId || target.dataset.parentId);
+      if (sid === draggedStepId || isStepInside(draggedStepId, sid)) return;
+      target.classList.add('drag-over');
+    });
+    
+    target.addEventListener('dragleave', () => {
+      target.classList.remove('drag-over');
+    });
+    
+    target.addEventListener('drop', (e) => {
+      e.preventDefault();
+      target.classList.remove('drag-over');
+      
+      const insertAt = target.dataset.insertAt;
+      const branchParentId = target.dataset.branchParentId || target.dataset.parentId;
+      const branchType = target.dataset.branchType;
+      
+      if (insertAt === 'end') {
+        window.moveToEnd(draggedStepId, Number(branchParentId), branchType);
+      } else if (branchParentId && branchType) {
+        window.moveToBranch(draggedStepId, Number(branchParentId), branchType);
+      }
+    });
+  });
+};
+
+function isStepInside(parentStepId, targetStepId) {
+  const parentStep = findStepById(parentStepId);
+  if (!parentStep || parentStep.kind !== 'check') return false;
+  
+  const foundInOk = findStepById(targetStepId, parentStep.okBranch);
+  if (foundInOk) return true;
+  
+  const foundInNg = findStepById(targetStepId, parentStep.ngBranch);
+  if (foundInNg) return true;
+  
+  return false;
 }
 
 function captureHotkey(e) {

@@ -20,20 +20,37 @@ export function defaultWaitSecondsForIndex(index) {
   return index % 2 === 0 ? 0.3 : 0.4;
 }
 
-export function getStepLabelById(id) {
-  const findIn = (steps) => {
-    for (let i = 0; i < steps.length; i++) {
-      if (steps[i].id === id) return `Step ${i + 1}`;
-      if (steps[i].kind === "check") {
-        const ok = findIn(steps[i].okBranch || []);
-        if (ok) return ok;
-        const ng = findIn(steps[i].ngBranch || []);
-        if (ng) return ng;
-      }
+let stepInfoMap = new Map();
+let globalStepOptionsHtml = "";
+
+export function getAllStepsFlat(steps) {
+  let res = [];
+  steps.forEach((s) => {
+    res.push(s);
+    if (s.kind === "check") {
+      res = res.concat(getAllStepsFlat(s.okBranch || []));
+      res = res.concat(getAllStepsFlat(s.ngBranch || []));
     }
-    return null;
-  };
-  return findIn(state.flowSteps) || "不明";
+  });
+  return res;
+}
+
+function prepareStepMetadata() {
+  const flat = getAllStepsFlat(state.flowSteps);
+  stepInfoMap.clear();
+  const options = [];
+  flat.forEach((s, i) => {
+    const num = i + 1;
+    const label = `Step ${num}`;
+    stepInfoMap.set(s.id, { num, label, title: s.title || s.kind });
+    options.push(`<option value="${s.id}">Step ${num}: ${escapeHtml(s.title || s.kind)}</option>`);
+  });
+  globalStepOptionsHtml = options.join("");
+}
+
+export function getStepLabelById(id) {
+  const info = stepInfoMap.get(id);
+  return info ? info.label : "不明";
 }
 
 export const icons = {
@@ -140,14 +157,11 @@ function renderStepCard(step, stepNum, isLast = false) {
     `;
     editorContent = "";
   } else if (step.kind === "jump") {
-    const stepOptions = state.flowSteps
-      .map(
-        (s, i) =>
-          `<option value="${s.id}" ${step.targetId === s.id ? "selected" : ""}>Step ${i + 1}: ${escapeHtml(s.title || s.kind)}</option>`,
-      )
-      .join("");
-
-    let targetDesc = getStepLabelById(step.targetId) || "未設定";
+    // 選択されたターゲットを selected 属性付きで反映させるための正規表現置換、または動的生成
+    const optionsWithSelected = globalStepOptionsHtml.replace(
+      `value="${step.targetId}"`,
+      `value="${step.targetId}" selected`
+    );
 
     displayContent = `
       <div style="display: flex; flex-direction: column; gap: 6px;">
@@ -155,7 +169,7 @@ function renderStepCard(step, stepNum, isLast = false) {
           <span class="step-key-label" style="min-width: 60px;">移動先:</span>
           <select class="step-input" data-field="targetId" data-step-id="${step.id}" style="width: auto;">
             <option value="">-- ステップ選択 --</option>
-            ${stepOptions}
+            ${optionsWithSelected}
           </select>
         </div>
       </div>
@@ -284,7 +298,7 @@ function renderFlowStepsRecursive(
       const targetDesc = getStepLabelById(step.targetId) || "未設定";
       nodes.push(`
         <div class="flow-jump-group">
-          <div class="flow-connector">
+          <div class="flow-connector" data-insert-after="${step.id}">
             <div class="flow-connector-pill">
               <span class="flow-connector-dot"></span>
               待機
@@ -336,7 +350,7 @@ function renderFlowStepsRecursive(
       else if (ngEndsStop) mergeClass = " ng-ends";
 
       const okBeforeConnector = `
-        <div class="flow-connector is-branch">
+        <div class="flow-connector is-branch" data-branch-parent-id="${step.id}" data-branch-type="ok" data-is-start="true">
           <div class="flow-connector-pill">
             <span class="flow-connector-dot"></span>
             待機
@@ -346,7 +360,7 @@ function renderFlowStepsRecursive(
         </div>
       `;
       const ngBeforeConnector = `
-        <div class="flow-connector is-branch">
+        <div class="flow-connector is-branch" data-branch-parent-id="${step.id}" data-branch-type="ng" data-is-start="true">
           <div class="flow-connector-pill">
             <span class="flow-connector-dot"></span>
             待機
@@ -373,7 +387,7 @@ function renderFlowStepsRecursive(
           </div>
           <div class="flow-split" data-parent-check-id="${step.id}">
             <div class="flow-split-col ok${okSelected ? " selected" : ""}${okEndsStop ? " ends-stop" : ""}" data-branch-type="ok" data-parent-id="${step.id}">
-              <div class="flow-split-header${okSelected && state.selectedBranch.selectionType === "header" ? " selected" : ""}">✅ OK (見つかった時)</div>
+              <div class="flow-split-header${okSelected && state.selectedBranch.selectionType === "header" ? " selected" : ""}" data-branch-type="ok" data-parent-id="${step.id}">✅ OK (見つかった時)</div>
               ${okBeforeConnector}
               ${okHtml || `<div class="flow-split-empty${okSelected && state.selectedBranch.selectionType === "empty" ? " selected" : ""}" data-branch-type="ok" data-parent-id="${step.id}">
                 <span class="flow-merge-indicator">↓</span>
@@ -383,7 +397,7 @@ function renderFlowStepsRecursive(
               ${okEndsStop ? "" : `<div class="flow-branch-filler"></div>`}
             </div>
             <div class="flow-split-col ng${ngSelected ? " selected" : ""}${ngEndsStop ? " ends-stop" : ""}" data-branch-type="ng" data-parent-id="${step.id}">
-              <div class="flow-split-header${ngSelected && state.selectedBranch.selectionType === "header" ? " selected" : ""}">❌ NG (見つからない時)</div>
+              <div class="flow-split-header${ngSelected && state.selectedBranch.selectionType === "header" ? " selected" : ""}" data-branch-type="ng" data-parent-id="${step.id}">❌ NG (見つからない時)</div>
               ${ngBeforeConnector}
               ${ngHtml || `<div class="flow-split-empty${ngSelected && state.selectedBranch.selectionType === "empty" ? " selected" : ""}" data-branch-type="ng" data-parent-id="${step.id}">
                 <span class="flow-merge-indicator">↓</span>
@@ -394,7 +408,7 @@ function renderFlowStepsRecursive(
             </div>
           </div>
           <div class="flow-merge${mergeClass}${isMergeSelected ? " selected" : ""}">
-            <span class="flow-merge-pill${isMergeSelected ? " selected" : ""}" data-rendered-from="merge" data-action="select-merge" data-parent-id="${step.id}">↓ メインフローに合流</span>
+            <span class="flow-merge-pill${isMergeSelected ? " selected" : ""}" data-rendered-from="merge" data-action="select-merge" data-parent-id="${step.id}" data-insert-at="end" data-branch-type="ok_ng_merge">↓ メインフローに合流</span>
           </div>
         </div>
       `);
@@ -409,7 +423,7 @@ function renderFlowStepsRecursive(
         if (step.kind !== "check") {
           const waitSeconds = step.waitAfter ?? defaultWaitSecondsForIndex(index);
           nodes.push(`
-            <div class="flow-connector">
+            <div class="flow-connector" data-insert-after="${step.id}">
               <div class="flow-connector-pill">
                 <span class="flow-connector-dot"></span>
                 待機
@@ -421,7 +435,7 @@ function renderFlowStepsRecursive(
         }
         
         nodes.push(`
-          <div class="flow-loop-connector">
+          <div class="flow-loop-connector" data-insert-at="end" data-is-top="true">
             <div class="flow-connector-pill" style="background: #f0f9ff; border-color: #bae6fd; color: #0369a1; padding: 6px 16px;">
               <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="margin-right:6px;"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>
               最初に戻ってループ
@@ -431,7 +445,7 @@ function renderFlowStepsRecursive(
       } else if (isTopLevel && !isLoopEnabled) {
         nodes.push(`
           <div class="flow-connector"></div>
-          <div class="flow-end-connector">
+          <div class="flow-end-connector" data-insert-at="end" data-is-top="true">
             <div class="flow-connector-pill" style="background: #fef2f2; border-color: #fecaca; color: #991b1b; padding: 6px 16px;">
               <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right:6px;"><path d="M9 9h6v6H9z"/></svg>
               実行終了
@@ -442,7 +456,7 @@ function renderFlowStepsRecursive(
     } else if (step.kind !== "check") {
       const waitSeconds = step.waitAfter ?? defaultWaitSecondsForIndex(index);
       nodes.push(`
-        <div class="flow-connector">
+        <div class="flow-connector" data-insert-after="${step.id}">
           <div class="flow-connector-pill">
             <span class="flow-connector-dot"></span>
             待機
@@ -473,11 +487,13 @@ function renderFlowStepsRecursive(
 export function updateFlowPreview() {
   const track = document.getElementById("flowTrack");
   if (!track) return;
+  prepareStepMetadata();
   const { html } = renderFlowStepsRecursive(state.flowSteps, true);
   track.innerHTML = html;
-
-  // レールの長さを動的に調整する処理は廃止（CSSセグメント方式へ移行）
-  requestAnimationFrame(() => {});
+  
+  if (typeof window.setupStepDragAndDrop === "function") {
+    window.setupStepDragAndDrop();
+  }
 }
 
 export function updateMiniFlow() {
@@ -485,19 +501,7 @@ export function updateMiniFlow() {
   if (!container) return;
   container.innerHTML = "";
 
-  function getStepsFlat(steps) {
-    let res = [];
-    steps.forEach((s) => {
-      res.push(s);
-      if (s.kind === "check") {
-        res = res.concat(getStepsFlat(s.okBranch || []));
-        res = res.concat(getStepsFlat(s.ngBranch || []));
-      }
-    });
-    return res;
-  }
-
-  const flat = getStepsFlat(state.flowSteps);
+  const flat = getAllStepsFlat(state.flowSteps);
   flat.forEach((step, idx) => {
     if (idx > 0) {
       const arrow = document.createElement("span");

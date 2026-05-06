@@ -21,7 +21,13 @@ export function loadFromStorage(callbacks) {
     try {
       const data = JSON.parse(newJson);
       state.projects = data.projects || {};
-      state.projectOrder = data.projectOrder || Object.keys(state.projects);
+      const loadedOrder = data.projectOrder || [];
+      const projectIds = Object.keys(state.projects);
+      // 読み込まれた順序を維持しつつ、漏れているプロジェクトがあれば追加
+      state.projectOrder = [
+        ...loadedOrder.filter(id => projectIds.includes(id)),
+        ...projectIds.filter(id => !loadedOrder.includes(id))
+      ];
       const savedActiveId = data.activeProjectId;
       if (data.globalSettings) {
         if (data.globalSettings.reloadHotkey) {

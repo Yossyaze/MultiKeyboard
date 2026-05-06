@@ -437,13 +437,16 @@ local allSequences = {}
     lua += `local seq_${p.id.replace(/-/g, "_")} = createSequence(config_${p.id.replace(/-/g, "_")})\n`;
     lua += `table.insert(allSequences, seq_${p.id.replace(/-/g, "_")})\n`;
 
-    const sMods = modsToLua(p.hotkeys.start.mods);
-    const sKey = luaString(p.hotkeys.start.key);
-    const tMods = modsToLua(p.hotkeys.stop.mods);
-    const tKey = luaString(p.hotkeys.stop.key);
-
-    lua += `hs.hotkey.bind(${sMods}, "${sKey}", function() seq_${p.id.replace(/-/g, "_")}.start() end)\n`;
-    lua += `hs.hotkey.bind(${tMods}, "${tKey}", function() seq_${p.id.replace(/-/g, "_")}.stop() end)\n`;
+    if (p.hotkeys.start.key && p.hotkeys.start.key !== "") {
+      const sMods = modsToLua(p.hotkeys.start.mods);
+      const sKey = luaString(p.hotkeys.start.key);
+      lua += `hs.hotkey.bind(${sMods}, "${sKey}", function() seq_${p.id.replace(/-/g, "_")}.start() end)\n`;
+    }
+    if (p.hotkeys.stop.key && p.hotkeys.stop.key !== "") {
+      const tMods = modsToLua(p.hotkeys.stop.mods);
+      const tKey = luaString(p.hotkeys.stop.key);
+      lua += `hs.hotkey.bind(${tMods}, "${tKey}", function() seq_${p.id.replace(/-/g, "_")}.stop() end)\n`;
+    }
   });
 
   lua += `\n-- 全プロジェクト一括停止ホットキー\n`;

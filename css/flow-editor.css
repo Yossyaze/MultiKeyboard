@@ -97,34 +97,38 @@
   position: relative;
   width: 100%;
   box-sizing: border-box;
+  cursor: grab;
+}
+
+.flow-step:active {
+  cursor: grabbing;
 }
 
 .flow-step.dragging {
-  opacity: 0.55;
-  border-color: #86afd6;
-  box-shadow: 0 0 0 2px #d8e8f8;
-}
-
-.flow-step.selected {
-  border-color: #3b82f6;
-  box-shadow:
-    0 0 0 1px #3b82f6,
-    0 0 0 4px rgba(59, 130, 246, 0.1),
-    0 4px 12px rgba(18, 38, 63, 0.12);
-  background: #f0f7ff;
+  opacity: 0.4;
+  border: 2px dashed #3b82f6;
+  box-shadow: none;
 }
 
 .flow-step.drop-before {
-  box-shadow: inset 0 3px 0 #4d89c8;
+  box-shadow: inset 0 4px 0 #3b82f6;
 }
 
-.flow-step.drop-after {
-  box-shadow: inset 0 -3px 0 #4d89c8;
+.flow-split-col.drop-in,
+.flow-split-header.drag-over,
+.flow-split-empty.drag-over,
+.flow-connector.drag-over,
+.flow-loop-connector.drag-over,
+.flow-end-connector.drag-over,
+.flow-merge-pill.drag-over {
+  background: #eff6ff !important;
+  border-color: #3b82f6 !important;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2) !important;
 }
 
-.flow-split-col.drop-in {
-  background: #f0f7ff;
-  box-shadow: inset 0 0 0 2px #4d89c8;
+.flow-step.drag-over-top {
+  border-top: 4px solid #3b82f6 !important;
+  margin-top: -3px; /* ボーダー分だけ調整 */
 }
 
 .flow-split-col.selected {
