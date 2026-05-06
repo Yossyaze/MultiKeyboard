@@ -58,6 +58,7 @@ export function flushActiveProject() {
     settleIPhone: document.getElementById("settleIPhone").value,
     waitIPhone: document.getElementById("waitIPhone").value,
     enableTimelineLog: document.getElementById("enableTimelineLog").checked ? "true" : "false",
+    enableExecutionAlert: document.getElementById("enableExecutionAlert").checked ? "true" : "false",
     enableLoop: document.getElementById("enableLoop").checked ? "true" : "false",
   };
 }
@@ -128,6 +129,7 @@ export function normalizeStep(step) {
     s.appName = (step.appName || "").trim();
   } else if (s.kind === "check") {
     s.text = (step.text || "").trim();
+    s.useRegex = !!step.useRegex;
     s.okWaitBefore = normalizeWaitAfter(step.okWaitBefore, 0.5);
     s.ngWaitBefore = normalizeWaitAfter(step.ngWaitBefore, 0.5);
     s.okWaitAfter = normalizeWaitAfter(step.okWaitAfter, 0.5);

@@ -130,8 +130,12 @@ function renderStepCard(step, stepNum, isLast = false) {
     editorContent = "";
   } else if (step.kind === "check") {
     displayContent = `
-      <div class="step-key-label-group">
-        <input type="text" class="step-input" data-field="text" data-step-id="${step.id}" value="${escapeHtml(step.text || "")}" placeholder="検知するテキストを入力..." />
+      <div class="step-key-label-group" style="align-items: center; gap: 8px;">
+        <input type="text" class="step-input" style="flex:1;" data-field="text" data-step-id="${step.id}" value="${escapeHtml(step.text || "")}" placeholder="検知するテキストを入力..." />
+        <label style="display:flex; align-items:center; gap:4px; font-size:0.75rem; color:#64748b; cursor:pointer; white-space:nowrap;">
+          <input type="checkbox" data-field="useRegex" data-step-id="${step.id}" ${step.useRegex ? "checked" : ""} style="width:14px; height:14px; margin:0;" />
+          正規表現
+        </label>
       </div>
     `;
     editorContent = "";

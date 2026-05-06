@@ -470,7 +470,8 @@ document.addEventListener("DOMContentLoaded", () => {
   document.getElementById("flowTrack").onchange = (e) => {
     const t = e.target;
     if (t.dataset.field && t.dataset.stepId) {
-      updateStepField(Number(t.dataset.stepId), t.dataset.field, t.value);
+      const val = t.type === "checkbox" ? t.checked : t.value;
+      updateStepField(Number(t.dataset.stepId), t.dataset.field, val);
     }
   };
 

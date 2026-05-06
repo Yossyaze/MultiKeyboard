@@ -44,6 +44,11 @@ local function logStep(enableTimelineLog, cycleCount, step, detail)
   print(msg)
 end
 
+local function showAlert(config, message)
+  if not config.enableExecutionAlert then return end
+  hs.alert.show(message, 1)
+end
+
 local function createSequence(config)
   local running = false
   local cycleCount = 0
@@ -54,11 +59,32 @@ local function createSequence(config)
     stepIdToIndex[s.id] = i
   end
 
+  -- 正規表現マッチング用のヘルパー
+  local function checkRegexMatch(text, pattern)
+    if not text or text == "" then return false, nil end
+    local tmp = os.tmpname()
+    local f = io.open(tmp, "w")
+    if f then
+      f:write(text)
+      f:close()
+      local qPattern = "'" .. pattern:gsub("'", "'\\''") .. "'"
+      local qTmp = "'" .. tmp:gsub("'", "'\\''") .. "'"
+      -- -oE でマッチした箇所を抽出（-qは外す）
+      local output, status = hs.execute(string.format("/usr/bin/grep -oE %s %s", qPattern, qTmp))
+      os.remove(tmp)
+      if status then
+        return true, (output or ""):gsub("\\n", " "):sub(1, 100)
+      end
+    end
+    return false, nil
+  end
+
   -- ブランチ内のステップを逐次実行するヘルパー
   local executeBranch
   local function executeSingleStep(bStep, onDone)
     if not running then return end
     logStep(config.enableTimelineLog, cycleCount, "BRANCH_STEP", string.format("type=%s label=%s", bStep.type, bStep.label))
+    showAlert(config, string.format("[%s] Step %d: %s", config.name, bStep.displayNum or 0, bStep.label))
     if bStep.type == "stop" then
       running = false
       hs.alert.show(string.format("[%s] 【停止】ブランチ内STOP", config.name), 5)
@@ -66,27 +92,47 @@ local function createSequence(config)
     elseif bStep.type == "jump" then
       local nextIdx = nil
       if bStep.targetId then nextIdx = stepIdToIndex[bStep.targetId] end
-      if nextIdx then
-        logStep(config.enableTimelineLog, cycleCount, "BRANCH_JUMP", "to index=" .. nextIdx)
-        -- ブランチを中断してメインフローの指定位置へ
-        onDone(nextIdx)
-      else
-        onDone(nil)
-      end
+      local wait = bStep.waitAfter or 0.25
+      config._timer = hs.timer.doAfter(wait, function()
+        config._timer = nil
+        if not running then return end
+        if nextIdx then
+          logStep(config.enableTimelineLog, cycleCount, "BRANCH_JUMP", "to index=" .. nextIdx)
+          -- ブランチを中断してメインフローの指定位置へ
+          onDone(nextIdx)
+        else
+          onDone(nil)
+        end
+      end)
       return
     elseif bStep.type == "check" then
       local task = hs.task.new("/usr/bin/shortcuts", function(exitCode, stdOut, stdErr)
         if not running then return end
-        local branch = {}
-        local waitBefore = 0.5
-        local waitAfter = 0.5
-        if exitCode == 0 and stdOut and string.find(stdOut, bStep.text, 1, true) then
-          logStep(config.enableTimelineLog, cycleCount, "CHECK_MATCH", bStep.text)
+
+        local matched = false
+        local matchedText = nil
+        if exitCode == 0 and stdOut then
+          if bStep.useRegex then
+            matched, matchedText = checkRegexMatch(stdOut, bStep.text)
+          else
+            local start, finish = string.find(stdOut, bStep.text, 1, true)
+            if start then
+              matched = true
+              matchedText = string.sub(stdOut, start, finish)
+            end
+          end
+        end
+
+        local cleanOut = (stdOut or ""):gsub("\\n", " "):sub(1, 200)
+        local logDetail = string.format("pattern=%s | screen=%s", bStep.text, cleanOut)
+        if matched then
+          logDetail = logDetail .. string.format(" | matched=%s", matchedText or "")
+          logStep(config.enableTimelineLog, cycleCount, "CHECK_MATCH", logDetail)
           branch = bStep.okBranch or {}
           waitBefore = bStep.okWaitBefore or 0.5
           waitAfter = bStep.okWaitAfter or 0.5
         else
-          logStep(config.enableTimelineLog, cycleCount, "CHECK_NO_MATCH", bStep.text)
+          logStep(config.enableTimelineLog, cycleCount, "CHECK_NO_MATCH", logDetail)
           branch = bStep.ngBranch or {}
           waitBefore = bStep.ngWaitBefore or 0.5
           waitAfter = bStep.ngWaitAfter or 0.5
@@ -195,6 +241,7 @@ local function createSequence(config)
 
       local s = config.steps[index]
       logStep(config.enableTimelineLog, cycleCount, "STEP_" .. index, string.format("type=%s label=%s", s.type, s.label))
+      showAlert(config, string.format("[%s] Step %d: %s", config.name, s.displayNum or index, s.label))
 
       if s.type == "move" then
         hs.eventtap.keyStroke(s.mods or {}, s.key, 0)
@@ -230,26 +277,46 @@ local function createSequence(config)
       elseif s.type == "jump" then
         local nextIdx = nil
         if s.targetId then nextIdx = stepIdToIndex[s.targetId] end
-        if nextIdx then
-          logStep(config.enableTimelineLog, cycleCount, "JUMP", "to index=" .. nextIdx)
-          runStep(nextIdx)
-        else
-          runStep(index + 1)
-        end
+        local wait = s.waitAfter or 0.25
+        config._timer = hs.timer.doAfter(wait, function()
+          config._timer = nil
+          if not running then return end
+          if nextIdx then
+            logStep(config.enableTimelineLog, cycleCount, "JUMP", "to index=" .. nextIdx)
+            runStep(nextIdx)
+          else
+            runStep(index + 1)
+          end
+        end)
         return
       elseif s.type == "check" then
         local task = hs.task.new("/usr/bin/shortcuts", function(exitCode, stdOut, stdErr)
           if not running then return end
-          local branch = {}
-          local waitBefore = 0.5
-          local waitAfter = 0.5
-          if exitCode == 0 and stdOut and string.find(stdOut, s.text, 1, true) then
-            logStep(config.enableTimelineLog, cycleCount, "CHECK_MATCH", s.text)
+
+          local matched = false
+          local matchedText = nil
+          if exitCode == 0 and stdOut then
+            if s.useRegex then
+              matched, matchedText = checkRegexMatch(stdOut, s.text)
+            else
+              local start, finish = string.find(stdOut, s.text, 1, true)
+              if start then
+                matched = true
+                matchedText = string.sub(stdOut, start, finish)
+              end
+            end
+          end
+
+          local cleanOut = (stdOut or ""):gsub("\\n", " "):sub(1, 200)
+          local logDetail = string.format("pattern=%s | screen=%s", s.text, cleanOut)
+          if matched then
+            logDetail = logDetail .. string.format(" | matched=%s", matchedText or "")
+            logStep(config.enableTimelineLog, cycleCount, "CHECK_MATCH", logDetail)
             branch = s.okBranch or {}
             waitBefore = s.okWaitBefore or 0.5
             waitAfter = s.okWaitAfter or 0.5
           else
-            logStep(config.enableTimelineLog, cycleCount, "CHECK_NO_MATCH", s.text)
+            logStep(config.enableTimelineLog, cycleCount, "CHECK_NO_MATCH", logDetail)
             branch = s.ngBranch or {}
             waitBefore = s.ngWaitBefore or 0.5
             waitAfter = s.ngWaitAfter or 0.5
@@ -318,13 +385,18 @@ local allSequences = {}
     lua += `local config_${p.id.replace(/-/g, "_")} = {\n`;
     lua += `  name = "${luaString(p.name)}",\n`;
     lua += `  enableTimelineLog = ${p.config.enableTimelineLog || "true"},\n`;
+    lua += `  enableExecutionAlert = ${p.config.enableExecutionAlert || "false"},\n`;
     lua += `  enableLoop = ${p.config.enableLoop || "true"},\n`;
     lua += `  steps = {\n`;
+    
+    let currentDisplayNum = 1;
 
     const walkSteps = (steps) => {
       let sLua = "";
       steps.forEach((s) => {
+        const displayNum = currentDisplayNum++;
         sLua += `    {\n`;
+        sLua += `      displayNum = ${displayNum},\n`;
         sLua += `      id = ${s.id},\n`;
         sLua += `      type = "${s.kind}",\n`;
         sLua += `      label = "${luaString(s.title)}",\n`;
@@ -345,6 +417,7 @@ local allSequences = {}
           sLua += `      appName = "${luaString(s.appName)}",\n`;
         } else if (s.kind === "check") {
           sLua += `      text = "${luaString(s.text)}",\n`;
+          sLua += `      useRegex = ${s.useRegex ? "true" : "false"},\n`;
           sLua += `      okWaitBefore = ${s.okWaitBefore ?? 0.5},\n`;
           sLua += `      okWaitAfter = ${s.okWaitAfter ?? 0.5},\n`;
           sLua += `      ngWaitBefore = ${s.ngWaitBefore ?? 0.5},\n`;
