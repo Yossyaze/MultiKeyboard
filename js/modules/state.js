@@ -63,8 +63,11 @@ export function flushActiveProject() {
   };
 }
 
-export function defaultTitleByKind(kind) {
-  if (kind === "move") return "切り替えショートカット送信";
+export function defaultTitleByKind(kind, moveHotkey) {
+  if (kind === "move") {
+    if (moveHotkey === "iphoneMove") return "iPhoneへ切り替え";
+    return "iPadへ切り替え";
+  }
   if (kind === "click") return "アプリの座標クリック";
   if (kind === "focus") return "アプリを前面に出す";
   if (kind === "check") return "画面テキスト確認";
@@ -107,26 +110,29 @@ export function normalizeWaitAfter(value, fallback) {
 }
 
 export function normalizeStep(step) {
+  const kind = step.kind;
+  const moveHotkey = kind === "move" ? (step.moveHotkey || "ipadMove") : null;
+
   const s = {
     id: step.id,
-    kind: step.kind,
+    kind: kind,
     phase: (step.phase || "Custom").trim() || "Custom",
     title:
-      (step.title || defaultTitleByKind(step.kind)).trim() ||
-      defaultTitleByKind(step.kind),
+      (step.title || defaultTitleByKind(kind, moveHotkey)).trim() ||
+      defaultTitleByKind(kind, moveHotkey),
   };
 
   if (s.kind === "move") {
     s.moveHotkey = step.moveHotkey || "ipadMove";
   } else if (s.kind === "click") {
-    s.appName = (step.appName || "").trim();
-    s.x = Number.isFinite(Number(step.x)) ? Number(step.x) : 0;
-    s.y = Number.isFinite(Number(step.y)) ? Number(step.y) : 0;
+    s.appName = (step.appName || "mnst_ex_master").trim();
+    s.x = Number.isFinite(Number(step.x)) ? Number(step.x) : 178;
+    s.y = Number.isFinite(Number(step.y)) ? Number(step.y) : 545;
     s.settleBefore = Number.isFinite(Number(step.settleBefore))
       ? Number(step.settleBefore)
-      : 0.5;
+      : 0.2;
   } else if (s.kind === "focus") {
-    s.appName = (step.appName || "").trim();
+    s.appName = (step.appName || "KeyPad").trim();
   } else if (s.kind === "check") {
     s.text = (step.text || "").trim();
     s.useRegex = !!step.useRegex;

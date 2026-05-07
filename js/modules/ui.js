@@ -496,42 +496,7 @@ export function updateFlowPreview() {
   }
 }
 
-export function updateMiniFlow() {
-  const container = document.getElementById("miniFlow");
-  if (!container) return;
-  container.innerHTML = "";
 
-  const flat = getAllStepsFlat(state.flowSteps);
-  flat.forEach((step, idx) => {
-    if (idx > 0) {
-      const arrow = document.createElement("span");
-      arrow.className = "mini-arrow";
-      arrow.textContent = "→";
-      container.appendChild(arrow);
-    }
-
-    const item = document.createElement("div");
-    const kindClass =
-      step.kind === "move"
-        ? step.moveHotkey === "ipadMove"
-          ? "move"
-          : "iphone"
-        : step.kind;
-    item.className = `mini-step mini-step-${kindClass}`;
-
-    let iconHtml = icons.key;
-    if (step.kind === "move")
-      iconHtml = step.moveHotkey === "ipadMove" ? icons.ipad : icons.iphone;
-    else if (step.kind === "click") iconHtml = icons.click;
-    else if (step.kind === "focus") iconHtml = icons.focus;
-    else if (step.kind === "check") iconHtml = icons.check;
-    else if (step.kind === "jump") iconHtml = icons.jump;
-    else if (step.kind === "stop") iconHtml = icons.stop;
-
-    item.innerHTML = `${iconHtml} <span>${step.title || step.kind.toUpperCase()}</span>`;
-    container.appendChild(item);
-  });
-}
 
 export function renderHotkeys() {
   Object.keys(hotkeys).forEach((id) => {

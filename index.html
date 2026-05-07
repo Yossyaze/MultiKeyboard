@@ -43,6 +43,9 @@
           <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 7v6h-6"/><path d="M3 17a9 9 0 0 1 9-9 9 9 0 0 1 6 2.3l3 2.7"/></svg>
           Redo
         </button>
+        <button class="btn-ghost btn-small" id="btnExport" title="全データをエクスポート">エクスポート</button>
+        <button class="btn-ghost btn-small" id="btnImport" title="データをインポート">インポート</button>
+        <input type="file" id="importFile" style="display: none;" accept=".json">
         <div style="width: 1px; height: 24px; background: var(--line); margin: 0 4px;"></div>
         <button class="btn-ghost" id="btnToggleOutput">生成Luaを表示</button>
         <button class="btn-ghost" id="btnDownload">保存 (init.lua)</button>
@@ -375,13 +378,10 @@
           </div>
 
           <div id="viewList">
-            <div class="mini-flow-container" id="miniFlow"></div>
+
             <div class="flow-shell">
               <div class="flow-track" id="flowTrack"></div>
-              <div class="flow-footer">
-                <span class="flow-pill">SWITCH: フォーカス切り替え</span>
-                <span class="flow-pill">KEY: 実操作キー送信</span>
-              </div>
+
             </div>
           </div>
 

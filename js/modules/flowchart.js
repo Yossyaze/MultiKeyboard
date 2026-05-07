@@ -32,6 +32,18 @@ export async function updateMermaidGraph() {
 
   const lines = ["graph TD"];
 
+  // ノードの種類ごとのスタイル定義（直接適用用）
+  const styles = {
+    move: "fill:#e7f2ff,stroke:#bbd9f7,color:#0d57a1",
+    iphone: "fill:#f5f3ff,stroke:#ddd6fe,color:#5b21b6",
+    key: "fill:#e8f8ea,stroke:#bfe3c6,color:#1f6f2f",
+    click: "fill:#fff1f2,stroke:#fecdd3,color:#be123c",
+    check: "fill:#fefce8,stroke:#fef08a,color:#854d0e",
+    focus: "fill:#eef2ff,stroke:#c7d2fe,color:#4338ca",
+    jump: "fill:#f0fdfa,stroke:#ccfbf1,color:#115e59",
+    stop: "fill:#fef2f2,stroke:#fecaca,color:#991b1b"
+  };
+
   // 2. ノードの定義（形状とラベル）を再帰的に生成
   const generateNodes = (steps) => {
     steps.forEach((raw) => {
@@ -46,6 +58,11 @@ export async function updateMermaidGraph() {
       else shape = `["${labelText}"]`;
       
       lines.push(`  ${nodeId}${shape}`);
+      
+      const kind = s.kind === "move" ? (s.moveHotkey === "ipadMove" ? "move" : "iphone") : s.kind;
+      if (styles[kind]) {
+        lines.push(`  style ${nodeId} ${styles[kind]}`);
+      }
 
       if (s.kind === "check") {
         generateNodes(s.okBranch || []);

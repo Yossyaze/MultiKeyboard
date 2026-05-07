@@ -455,7 +455,7 @@ local allSequences = {}
   lua += `end)\n`;
 
   lua += `\n-- 設定再読込ホットキー\nhs.hotkey.bind(${reloadModsLua}, "${reloadKeyLua}", function()\n  hs.reload()\nend)\n`;
-  lua += `hs.alert.show("Hammerspoon MultiKeyboard Config Loaded", 2)\n`;
+  lua += `hs.alert.show("Hammerspoon LuaScriptBuilder Config Loaded", 2)\n`;
 
   return lua;
 }

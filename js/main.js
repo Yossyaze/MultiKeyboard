@@ -6,7 +6,6 @@ import { saveToStorage, loadFromStorage } from './modules/storage.js';
 import { generateLua } from './modules/lua.js';
 import { 
   updateFlowPreview, 
-  updateMiniFlow, 
   renderHotkeys, 
   updateProjectTabs, 
   setStatus,
@@ -126,7 +125,6 @@ window.refreshFlowViews = function() {
   if (refreshTimeout) clearTimeout(refreshTimeout);
   refreshTimeout = setTimeout(() => {
     updateFlowPreview();
-    updateMiniFlow();
     saveToStorage();
     refreshTimeout = null;
   }, 10);
@@ -237,6 +235,70 @@ window.deleteProject = function(projectId) {
     }
     saveToStorage();
   }
+};
+
+window.exportAllData = function() {
+  flushActiveProject();
+  const data = {
+    activeProjectId: state.activeProjectId,
+    projects: state.projects,
+    globalSettings: state.globalSettings,
+    projectOrder: state.projectOrder,
+  };
+  const json = JSON.stringify(data, null, 2);
+  const blob = new Blob([json], { type: "application/json" });
+  const url = URL.createObjectURL(blob);
+  const date = new Date().toISOString().slice(0, 10).replace(/-/g, "");
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `luascriptbuilder-backup-${date}.json`;
+  a.click();
+  URL.revokeObjectURL(url);
+  setStatus("データをエクスポートしました");
+};
+
+window.importAllData = function(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+
+  const reader = new FileReader();
+  reader.onload = function(e) {
+    try {
+      const data = JSON.parse(e.target.result);
+      if (!data.projects || !data.globalSettings) {
+        throw new Error("無効なデータ形式です");
+      }
+
+      if (!confirm("現在のすべてのデータが上書きされます。よろしいですか？")) {
+        event.target.value = "";
+        return;
+      }
+
+      saveHistory(); // インポート前を履歴に保存
+      
+      // ステートの更新
+      state.projects = data.projects;
+      state.globalSettings = data.globalSettings;
+      state.activeProjectId = data.activeProjectId;
+      state.projectOrder = data.projectOrder || Object.keys(data.projects);
+
+      // 初期プロジェクトの読み込み
+      if (state.activeProjectId && state.projects[state.activeProjectId]) {
+        window.loadProjectState(state.activeProjectId);
+      } else {
+        const firstId = state.projectOrder[0] || Object.keys(state.projects)[0];
+        if (firstId) window.loadProjectState(firstId);
+      }
+
+      saveToStorage();
+      setStatus("データをインポートしました");
+    } catch (err) {
+      console.error(err);
+      alert("インポートに失敗しました: " + err.message);
+    }
+    event.target.value = "";
+  };
+  reader.readAsText(file);
 };
 
 window.reorderProjects = function(draggedId, targetId) {
@@ -610,6 +672,18 @@ document.addEventListener("DOMContentLoaded", () => {
     window.deleteProject(state.activeProjectId);
   };
 
+  document.getElementById("btnExport").onclick = () => {
+    window.exportAllData();
+  };
+
+  document.getElementById("btnImport").onclick = () => {
+    document.getElementById("importFile").click();
+  };
+
+  document.getElementById("importFile").onchange = (e) => {
+    window.importAllData(e);
+  };
+
   document.getElementById("btnFlowAddIPad").onclick = () => addStep("move", "ipadMove");
   document.getElementById("btnFlowAddIPhone").onclick = () => addStep("move", "iphoneMove");
   document.getElementById("btnFlowAddKey").onclick = () => addStep("key");
@@ -691,7 +765,7 @@ document.addEventListener("DOMContentLoaded", () => {
   });
 
   // Selection logic
-  document.addEventListener("click", (e) => {
+  document.addEventListener("mousedown", (e) => {
     if (e.target.closest("button") || e.target.closest("input") || e.target.closest("select")) return;
     const stepEl = e.target.closest(".flow-step");
     const splitColEl = e.target.closest(".flow-split-col");

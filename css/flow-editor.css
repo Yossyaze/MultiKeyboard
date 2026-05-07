@@ -104,6 +104,15 @@
   cursor: grabbing;
 }
 
+.flow-step.selected {
+  border-color: #3b82f6 !important;
+  box-shadow:
+    0 0 0 1px #3b82f6,
+    0 0 0 4px rgba(59, 130, 246, 0.15),
+    0 4px 12px rgba(18, 38, 63, 0.12);
+  background: #f0f7ff !important;
+}
+
 .flow-step.dragging {
   opacity: 0.4;
   border: 2px dashed #3b82f6;
@@ -139,14 +148,15 @@
 
 .flow-split-header.selected {
   border-color: #3b82f6 !important;
+  background: #f0f7ff !important;
   box-shadow:
     0 0 0 1px #3b82f6,
     0 0 0 4px rgba(59, 130, 246, 0.15);
 }
 
 .flow-split-empty.selected {
-  border-color: #3b82f6;
-  background: #f0f9ff;
+  border-color: #3b82f6 !important;
+  background: #f0f7ff !important;
   box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.15);
 }
 
@@ -329,53 +339,6 @@
   text-overflow: ellipsis;
 }
 
-/* Mini Flow Styles */
-.mini-flow-container {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 6px;
-  padding: 12px;
-  background: #fdfefe;
-  border: 1px solid #dbe9f6;
-  border-radius: 12px;
-  margin-bottom: 12px;
-  min-height: 52px;
-  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.02);
-}
-
-.mini-step {
-  display: flex;
-  align-items: center;
-  gap: 5px;
-  padding: 3px 8px;
-  border-radius: 6px;
-  font-size: 0.7rem;
-  font-weight: 800;
-  white-space: nowrap;
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
-}
-
-.mini-step svg {
-  width: 14px;
-  height: 14px;
-}
-
-.mini-step-move { background: var(--clr-move-bg); color: var(--clr-move-ink); border: 1px solid var(--clr-move-line); }
-.mini-step-iphone { background: var(--clr-iphone-bg); color: var(--clr-iphone-ink); border: 1px solid var(--clr-iphone-line); }
-.mini-step-key { background: var(--clr-key-bg); color: var(--clr-key-ink); border: 1px solid var(--clr-key-line); }
-.mini-step-click { background: var(--clr-click-bg); color: var(--clr-click-ink); border: 1px solid var(--clr-click-line); }
-.mini-step-check { background: var(--clr-check-bg); color: var(--clr-check-ink); border: 1px solid var(--clr-check-line); }
-.mini-step-focus { background: var(--clr-focus-bg); color: var(--clr-focus-ink); border: 1px solid var(--clr-focus-line); }
-.mini-step-stop { background: var(--clr-stop-bg); color: var(--clr-stop-ink); border: 1px solid var(--clr-stop-line); }
-.mini-step-jump { background: var(--clr-jump-bg); color: var(--clr-jump-ink); border: 1px solid var(--clr-jump-line); }
-.mini-step-wait { background: #fdf6b2; color: #723b13; border: 1px solid #fce96a; }
-.mini-step-label { background: #f5f3ff; color: #5b21b6; border: 1px solid #ddd6fe; }
-
-.mini-arrow {
-  color: #cbd5e1;
-  font-size: 0.8rem;
-}
 
 .flow-step-body {
   display: grid;
@@ -459,13 +422,7 @@
   min-width: 0;
 }
 
-.flow-footer {
-  margin-top: 10px;
-  display: flex;
-  justify-content: center;
-  flex-wrap: wrap;
-  gap: 8px;
-}
+
 
 .flow-actions {
   margin-top: 10px;
@@ -508,16 +465,7 @@
 #btnFlowAddJump { background: var(--clr-jump-bg); color: var(--clr-jump-ink); border: 1px solid var(--clr-jump-line); }
 #btnFlowAddStop { background: var(--clr-stop-bg); color: var(--clr-stop-ink); border: 1px solid var(--clr-stop-line); }
 
-.flow-pill {
-  padding: 4px 9px;
-  border-radius: 999px;
-  border: 1px solid #d8e6f3;
-  background: #f8fbff;
-  color: #42627a;
-  font-size: 0.76rem;
-  font-weight: 700;
-  letter-spacing: 0.02em;
-}
+
 
 /* ========== CHECK ブロック（分割と合流の親コンテナ） ========== */
 .flow-check-block {
